@@ -1,3 +1,4 @@
+use crate::localize::{LocaleCatalog, LocaleError, load_locale};
 use crate::manifest::{ManifestError, ProjectManifest, load_manifest};
 use crate::parser::{ParseError, parse_file};
 use std::fs;
@@ -12,6 +13,7 @@ pub struct LoadedProject {
     pub root: PathBuf,
     pub manifest: ProjectManifest,
     pub script_hash: String,
+    pub locales: Vec<LocaleCatalog>,
     pub script: Script,
 }
 
@@ -26,6 +28,8 @@ pub enum ProjectError {
     Manifest(#[from] ManifestError),
     #[error("script parse failed: {0}")]
     Parse(#[from] ParseError),
+    #[error("locale load failed: {0}")]
+    Locale(#[from] LocaleError),
 }
 
 /// Loads all `.vn` files under `<project>/script` in path order.
@@ -49,12 +53,37 @@ pub fn load_project(root: impl AsRef<Path>) -> Result<LoadedProject, ProjectErro
         statements.extend(parsed.statements);
     }
 
+    let locale_root = root.join(&manifest.paths.locales);
+    let locales = load_locales(&locale_root)?;
+
     Ok(LoadedProject {
         root,
         manifest,
         script_hash: hasher.finalize().to_hex().to_string(),
+        locales,
         script: Script { statements },
     })
+}
+
+fn load_locales(root: &Path) -> Result<Vec<LocaleCatalog>, ProjectError> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return Ok(Vec::new());
+    };
+    let mut locales = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|source| ProjectError::ReadDir {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        let path = entry.path();
+        if path.extension().is_some_and(|extension| extension == "ftl")
+            && let Some(locale) = path.file_stem().and_then(|stem| stem.to_str())
+        {
+            locales.push(load_locale(root, locale)?);
+        }
+    }
+    locales.sort_by(|left, right| left.locale.cmp(&right.locale));
+    Ok(locales)
 }
 
 fn hash_script_file(hasher: &mut blake3::Hasher, root: &Path, file: &Path, source: &str) {
