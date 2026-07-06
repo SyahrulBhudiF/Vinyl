@@ -1,6 +1,7 @@
 use crate::vm::VmState;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use thiserror::Error;
 
 /// Serializable presentation snapshot owned outside renderers.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -42,17 +43,68 @@ impl From<&str> for ProjectId {
     }
 }
 
+/// Current supported save schema version.
+pub const CURRENT_SAVE_VERSION: u32 = 1;
+
 /// Save file containing deterministic state only.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SaveFile {
+    pub save_version: u32,
     pub engine_version: String,
     pub game_id: ProjectId,
+    pub project_version: String,
     pub script_hash: String,
     pub vm: VmState,
     pub presentation: PresentationSnapshot,
     pub preferences: Preferences,
     pub screenshot_png: Vec<u8>,
     pub timestamp: i64,
+}
+
+/// Save compatibility validation error.
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+pub enum SaveValidationError {
+    #[error("unsupported save version {actual}, expected {expected}")]
+    UnsupportedSaveVersion { actual: u32, expected: u32 },
+    #[error("wrong game id '{actual}', expected '{expected}'")]
+    WrongGameId { actual: String, expected: String },
+    #[error("wrong project version '{actual}', expected '{expected}'")]
+    WrongProjectVersion { actual: String, expected: String },
+    #[error("script hash mismatch '{actual}', expected '{expected}'")]
+    ScriptHashMismatch { actual: String, expected: String },
+}
+
+pub fn validate_save(
+    save: &SaveFile,
+    project_id: &ProjectId,
+    project_version: &str,
+    script_hash: &str,
+) -> Result<(), SaveValidationError> {
+    if save.save_version != CURRENT_SAVE_VERSION {
+        return Err(SaveValidationError::UnsupportedSaveVersion {
+            actual: save.save_version,
+            expected: CURRENT_SAVE_VERSION,
+        });
+    }
+    if &save.game_id != project_id {
+        return Err(SaveValidationError::WrongGameId {
+            actual: save.game_id.0.clone(),
+            expected: project_id.0.clone(),
+        });
+    }
+    if save.project_version != project_version {
+        return Err(SaveValidationError::WrongProjectVersion {
+            actual: save.project_version.clone(),
+            expected: project_version.to_string(),
+        });
+    }
+    if save.script_hash != script_hash {
+        return Err(SaveValidationError::ScriptHashMismatch {
+            actual: save.script_hash.clone(),
+            expected: script_hash.to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// User preferences persisted beside saves.

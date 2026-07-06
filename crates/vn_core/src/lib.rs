@@ -13,6 +13,7 @@ pub use ast::{
 pub use compile::compile;
 pub use ir::{MenuChoice, Op, OpId, OpKind, Program};
 pub use save::{
-    DialogueSnapshot, Preferences, PresentationSnapshot, ProjectId, SaveFile, SpriteSnapshot,
+    CURRENT_SAVE_VERSION, DialogueSnapshot, Preferences, PresentationSnapshot, ProjectId, SaveFile,
+    SaveValidationError, SpriteSnapshot, validate_save,
 };
 pub use vm::{HistoryEntry, Vm, VmError, VmEvent, VmState};

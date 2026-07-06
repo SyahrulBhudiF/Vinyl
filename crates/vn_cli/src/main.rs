@@ -2,7 +2,10 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use vn_core::{Preferences, ProjectId, SaveFile, Stmt, StmtKind, Vm, VmEvent, compile};
+use vn_core::{
+    CURRENT_SAVE_VERSION, Preferences, ProjectId, SaveFile, Stmt, StmtKind, Vm, VmEvent, compile,
+    validate_save,
+};
 use vn_runtime::{apply_command, commands_from_event};
 use vn_script::{
     LocaleCatalog, ProjectError, extract_messages, load_project, render_messages,
@@ -166,8 +169,10 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         events.push(format_event(&event));
         if matches!(event, VmEvent::Menu { .. }) {
             let save_json = serde_json::to_string(&SaveFile {
+                save_version: CURRENT_SAVE_VERSION,
                 engine_version: env!("CARGO_PKG_VERSION").to_string(),
                 game_id: ProjectId::from(loaded.manifest.project.id.clone()),
+                project_version: loaded.manifest.project.version.clone(),
                 script_hash: loaded.script_hash.clone(),
                 vm: vm.state().clone(),
                 presentation: vm.presentation().clone(),
@@ -179,6 +184,12 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
                 timestamp: 0,
             })?;
             let save: SaveFile = serde_json::from_str(&save_json)?;
+            validate_save(
+                &save,
+                &ProjectId::from(loaded.manifest.project.id.clone()),
+                &loaded.manifest.project.version,
+                &loaded.script_hash,
+            )?;
             let mut restored = Vm::from_parts(program, save.vm, save.presentation);
             restored.set_translations(translations_for(&loaded.locales, &active_locale));
             let next = restored.choose(0)?;
