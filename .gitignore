@@ -1,0 +1,22 @@
+# Rust / Cargo
+/target
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Docs drafts
+*.md
+!README.md
+!AGENTS.md
+!**/README.md
+!**/AGENTS.md
+
+# OS
+.DS_Store
+Thumbs.db

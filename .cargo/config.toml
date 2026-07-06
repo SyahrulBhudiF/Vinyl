@@ -1,0 +1,12 @@
+[alias]
+b = "build --workspace"
+c = "check --workspace --all-targets"
+t = "test --workspace"
+nt = "nextest run --workspace"
+fmt-check = "fmt --all -- --check"
+lint = "clippy --workspace --all-targets -- -D warnings"
+ci = "test --workspace"
+deny-check = "deny check"
+audit = "audit"
+watch-test = "watch -x test"
+watch-check = "watch -x check -x test -x clippy"

@@ -1,0 +1,11 @@
+label start:
+    scene bg room
+    show eileen happy at center
+    eileen "Hello."
+    menu:
+        "Continue":
+            eileen "Good."
+            end
+        "Leave":
+            "You leave."
+            end

@@ -1,0 +1,15 @@
+[project]
+id = "mvp"
+title = "MVP"
+version = "0.1.0"
+default_locale = "en-US"
+
+[paths]
+script = "script"
+assets = "assets"
+locales = "locale"
+
+[assets]
+backgrounds = "bg"
+sprites = "sprites"
+audio = "audio"

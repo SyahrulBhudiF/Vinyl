@@ -1,0 +1,13 @@
+[package]
+name = "vn_runtime"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+serde.workspace = true
+vn_core = { path = "../vn_core" }
+vn_script = { path = "../vn_script" }
+
+[dev-dependencies]
+toml.workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "vn_script"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+blake3.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+vn_core = { path = "../vn_core" }
+
+[dev-dependencies]
+toml.workspace = true

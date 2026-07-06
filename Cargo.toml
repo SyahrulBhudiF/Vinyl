@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/vn_core",
+    "crates/vn_script",
+    "crates/vn_runtime",
+    "crates/vn_bevy",
+    "crates/vn_cli",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+
+[workspace.dependencies]
+anyhow = "1.0"
+blake3 = "1.8"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0.18"
+toml = "1.1.2"
