@@ -29,7 +29,11 @@ MVP engine and CLI tooling are in progress. Currently included:
 
 ### Normal install for game developers
 
-Download a binary from GitHub Releases:
+Download a binary from the latest GitHub Release:
+
+<https://github.com/SyahrulBhudiF/Vinyl/releases/latest>
+
+Pick the file for your OS:
 
 - Linux: `vn_cli-linux-x86_64`
 - macOS: `vn_cli-macos-aarch64`
@@ -80,20 +84,26 @@ vn_cli new my-game
 cd my-game
 ```
 
-Generated structure:
+`vn_cli new` creates this structure:
 
 ```text
 my-game/
-├── vinyl.toml
+├── vinyl.toml          # project config
 ├── script/
-│   └── start.vn
+│   └── start.vn        # story script
 ├── locale/
-│   └── en-US.ftl
+│   └── en-US.ftl       # translated text for en-US
 └── assets/
-    ├── bg/
-    ├── sprites/
+    ├── bg/             # backgrounds
+    ├── sprites/        # character sprites
     │   └── eileen/
-    └── audio/
+    └── audio/          # music and sound effects
+```
+
+`locale/en-US.ftl` is a Fluent translation file. You do not download it separately; it is created by `vn_cli new`. If you add text IDs in `.vn` files, run this to fill missing locale entries:
+
+```bash
+vn_cli extract-locales .
 ```
 
 Validate the project:
