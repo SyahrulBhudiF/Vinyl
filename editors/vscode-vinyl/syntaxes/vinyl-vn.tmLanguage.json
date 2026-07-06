@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Vinyl VN",
+  "scopeName": "source.vinyl-vn",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#textIds" },
+    { "include": "#variables" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#speaker" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.number-sign.vinyl-vn", "match": "#.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.vinyl-vn",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.vinyl-vn", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "textIds": {
+      "patterns": [
+        { "name": "constant.other.text-id.vinyl-vn", "match": "\\[[A-Za-z0-9_.-]+\\]" }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        { "name": "variable.other.vinyl-vn", "match": "\\$[A-Za-z_][A-Za-z0-9_]*" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.vinyl-vn", "match": "\\b\\d+(?:\\.\\d+)?\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vinyl-vn",
+          "match": "\\b(?:label|menu|jump|end|if|else)\\b"
+        },
+        {
+          "name": "keyword.other.vinyl-vn",
+          "match": "\\b(?:scene|show|hide|at|with|play|stop|music|bg)\\b"
+        },
+        {
+          "name": "support.function.effect.vinyl-vn",
+          "match": "\\b(?:fade|dissolve|instant|typewriter)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.vinyl-vn", "match": "==|!=|>=|<=|\\+=|-=|&&|\\|\\||[=:<>+\\-*/]" }
+      ]
+    },
+    "speaker": {
+      "patterns": [
+        { "name": "entity.name.speaker.vinyl-vn", "match": "^\\s*[A-Za-z_][A-Za-z0-9_]*(?=\\s+(?:\\[[A-Za-z0-9_.-]+\\]\\s+)?\")" }
+      ]
+    }
+  }
+}

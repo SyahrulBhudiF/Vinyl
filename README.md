@@ -1,43 +1,43 @@
 # Vinyl
 
-Vinyl adalah engine visual novel berbasis Rust, tapi **game developer tidak perlu menulis atau build Rust**.
-Target pemakaian utama: download binary `vn_cli`, buat project, tulis file `.vn`, taruh asset, cek, lalu jalankan/export lewat tooling.
+Vinyl is a visual novel engine written in Rust, but **game developers do not need to write or build Rust**.
+The intended workflow is simple: download the prebuilt `vn_cli` binary, create a project, write `.vn` scripts, add assets, validate, and run/export through the tooling.
 
-## Untuk siapa?
+## Who is this for?
 
-- Writer / narrative designer yang ingin bikin visual novel pakai text file.
-- Developer yang ingin runtime VN renderer-independent.
-- Project yang butuh parser, validator, save system, localization, dan integrasi renderer seperti Bevy.
+- Writers and narrative designers who want to create visual novels with text files.
+- Game developers who want a renderer-independent VN runtime.
+- Engine developers who need parser, validation, save, localization, and renderer integration primitives.
 
 ## Status
 
-MVP engine dan CLI tooling sedang dibangun. Yang sudah ada:
+MVP engine and CLI tooling are in progress. Currently included:
 
-- Script `.vn` indentation-based.
-- Project manifest `vinyl.toml`.
+- Indentation-based `.vn` script language.
+- Project manifest via `vinyl.toml`.
 - Asset resolver.
-- Parser + validator dengan diagnostics multi-file.
-- Menu, jump, condition, assignment, expression.
-- Transition/text-effect metadata.
-- Runtime VM + deterministic save/rollback.
-- Localization pakai Fluent `.ftl`.
+- Parser and validator with multi-file diagnostics.
+- Menu, jump, condition, assignment, and expressions.
+- Transition and text-effect metadata.
+- Runtime VM with deterministic save and rollback.
+- Localization with Fluent `.ftl` files.
 - Writer CLI: `new`, `check`, `run`, `dump-ast`, `dump-ir`, `list-assets`, `extract-locales`.
-- Astro Starlight docs site di `docs/`.
-- CI dan release workflow untuk prebuilt binary.
+- Astro Starlight documentation site in `docs/`.
+- CI and release workflows for prebuilt binaries.
 
 ## Install
 
-### Cara normal untuk game developer
+### Normal install for game developers
 
-Ambil binary dari GitHub Releases:
+Download a binary from GitHub Releases:
 
 - Linux: `vn_cli-linux-x86_64`
 - macOS: `vn_cli-macos-aarch64`
 - Windows: `vn_cli-windows-x86_64.exe`
 
-Lalu rename ke `vn_cli` dan taruh di PATH.
+Rename it to `vn_cli` and place it somewhere in your PATH.
 
-Contoh Linux/macOS:
+Linux/macOS example:
 
 ```bash
 chmod +x vn_cli-linux-x86_64
@@ -45,9 +45,9 @@ mv vn_cli-linux-x86_64 vn_cli
 ./vn_cli --help
 ```
 
-### Cara developer engine
+### Engine development install
 
-Kalau kamu mau ngembangin engine ini:
+Only needed if you want to work on the engine itself:
 
 ```bash
 cargo build
@@ -56,14 +56,14 @@ cargo test --workspace
 
 ## Quickstart
 
-Buat project baru:
+Create a new project:
 
 ```bash
 vn_cli new my-game
 cd my-game
 ```
 
-Struktur yang dibuat:
+Generated structure:
 
 ```text
 my-game/
@@ -79,26 +79,46 @@ my-game/
     └── audio/
 ```
 
-Cek project:
+Validate the project:
 
 ```bash
 vn_cli check .
 ```
 
-Jalankan smoke runtime CLI:
+Run a deterministic CLI smoke test:
 
 ```bash
 vn_cli run .
 ```
 
-Pakai locale tertentu:
+Use a specific locale:
 
 ```bash
 vn_cli check . --locale en-US
 vn_cli run . --locale en-US
 ```
 
-## Contoh script `.vn`
+## Editor syntax highlighting
+
+Vinyl includes a small VS Code-compatible syntax extension for `.vn` files:
+
+```text
+editors/vscode-vinyl/
+```
+
+Install it locally in VS Code:
+
+```bash
+cd editors/vscode-vinyl
+npx @vscode/vsce package
+code --install-extension vinyl-vn-syntax-0.1.0.vsix
+```
+
+For development, open `editors/vscode-vinyl/` in VS Code and press `F5`.
+
+GitHub does not support custom TextMate grammars from a repository. `.vn` highlighting is handled by the editor extension, not by GitHub Linguist.
+
+## Example `.vn` script
 
 `script/start.vn`:
 
@@ -110,14 +130,14 @@ label start:
             end
 ```
 
-Dengan localization di `locale/en-US.ftl`:
+Localization in `locale/en-US.ftl`:
 
 ```ftl
 intro-hello = Hello.
 intro-continue = Continue
 ```
 
-Contoh lebih lengkap:
+Larger example:
 
 ```vn
 label start:
@@ -137,7 +157,7 @@ label end:
     end
 ```
 
-Asset path yang dicari:
+Asset paths are resolved like this:
 
 ```text
 scene bg room                  -> assets/bg/room.png
@@ -145,9 +165,9 @@ show eileen happy at center    -> assets/sprites/eileen/happy.png
 play music theme               -> assets/audio/theme.*
 ```
 
-## File `vinyl.toml`
+## `vinyl.toml`
 
-Contoh manifest:
+Example manifest:
 
 ```toml
 [project]
@@ -167,54 +187,54 @@ sprites = "sprites"
 audio = "audio"
 ```
 
-## Command CLI
+## CLI commands
 
 ```bash
 vn_cli new <project>
 ```
 
-Buat project baru siap tulis.
+Create a writer-ready project.
 
 ```bash
 vn_cli check <project> [--locale en-US]
 ```
 
-Parse + validasi script, label, asset, dan locale.
+Parse and validate scripts, labels, assets, and locale entries.
 
 ```bash
 vn_cli run <project> [--locale en-US]
 ```
 
-Jalankan runtime deterministic smoke test. Berguna untuk memastikan script bisa dieksekusi.
+Run the project through the deterministic CLI runtime. Useful for smoke testing script execution.
 
 ```bash
 vn_cli list-assets <project>
 ```
 
-Tampilkan semua asset yang direferensikan script.
+Print all asset paths referenced by scripts.
 
 ```bash
 vn_cli extract-locales <project>
 ```
 
-Generate entry Fluent dari text id di script.
+Generate Fluent entries from script text IDs.
 
 ```bash
 vn_cli dump-ast <project>
 vn_cli dump-ir <project>
 ```
 
-Debug parser/compiler output sebagai JSON.
+Print parser/compiler output as JSON for debugging.
 
 ```bash
 vn_cli fmt <project>
 ```
 
-Saat ini masih parse/check placeholder. Source formatter penuh belum dibuat.
+Currently a parse/check placeholder. Full source rewriting is not implemented yet.
 
-## Dokumentasi website
+## Documentation site
 
-Docs site ada di `docs/` dan memakai Astro Starlight.
+The docs site lives in `docs/` and uses Astro Starlight.
 
 ```bash
 cd docs
@@ -223,17 +243,17 @@ npm run dev
 npm run build
 ```
 
-## GitHub Actions buat apa?
+## What are GitHub Actions for?
 
-GitHub Actions adalah automation yang jalan di GitHub tiap push, pull request, atau tag release.
+GitHub Actions are automation jobs that run on GitHub when code is pushed, a pull request is opened, or a release tag is created.
 
-Di repo ini dipakai untuk 2 hal:
+This repo uses them for two things:
 
 ### 1. CI quality gate
 
 File: `.github/workflows/ci.yml`
 
-CI menjalankan:
+CI runs:
 
 ```bash
 cargo fmt --check
@@ -242,32 +262,32 @@ cargo test --workspace --no-fail-fast --no-default-features
 cd docs && npm run build
 ```
 
-Gunanya:
+Why it exists:
 
-- Ngecek format kode.
-- Ngecek lint Rust.
-- Ngejalanin test otomatis.
-- Ngecek docs bisa build.
-- Mencegah code rusak masuk ke branch utama.
+- Check code formatting.
+- Run Rust lints.
+- Run automated tests.
+- Verify the docs site builds.
+- Prevent broken code from landing unnoticed.
 
-### 2. Release binary otomatis
+### 2. Automatic release binaries
 
 File: `.github/workflows/release.yml`
 
-Saat kamu push tag seperti:
+When a version tag is pushed:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub akan build `vn_cli` untuk Linux/macOS/Windows dan upload ke GitHub Releases.
+GitHub builds `vn_cli` for Linux, macOS, and Windows, then uploads the binaries to GitHub Releases.
 
-Gunanya penting: **game developer bisa download binary langsung, tidak perlu install Rust atau cargo build**.
+This is important because **game developers can download the CLI directly without installing Rust or running `cargo build`**.
 
-## Development checks lokal
+## Local development checks
 
-Sebelum commit besar:
+Before a large commit:
 
 ```bash
 cargo fmt --check

@@ -1,0 +1,28 @@
+{
+  "name": "vinyl-vn-syntax",
+  "displayName": "Vinyl VN Syntax",
+  "description": "Syntax highlighting for Vinyl .vn visual novel scripts.",
+  "version": "0.1.0",
+  "publisher": "vinyl",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vinyl-vn",
+        "aliases": ["Vinyl VN", "vn"],
+        "extensions": [".vn"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vinyl-vn",
+        "scopeName": "source.vinyl-vn",
+        "path": "./syntaxes/vinyl-vn.tmLanguage.json"
+      }
+    ]
+  }
+}
