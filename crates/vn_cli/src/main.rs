@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use vn_core::{ProjectId, SaveFile, Vm, VmEvent, compile};
 use vn_runtime::{apply_command, commands_from_event};
-use vn_script::{load_project, validate_with_manifest};
+use vn_script::{load_project, validate_with_locales};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
@@ -31,7 +31,12 @@ fn main() -> Result<()> {
 fn check(project: PathBuf) -> Result<()> {
     let loaded =
         load_project(&project).with_context(|| format!("loading {}", project.display()))?;
-    if let Err(error) = validate_with_manifest(&loaded.script, &loaded.root, &loaded.manifest) {
+    if let Err(error) = validate_with_locales(
+        &loaded.script,
+        &loaded.root,
+        &loaded.manifest,
+        &loaded.locales,
+    ) {
         for diagnostic in error.diagnostics() {
             eprintln!("{}", diagnostic.render());
         }
@@ -44,7 +49,12 @@ fn check(project: PathBuf) -> Result<()> {
 fn run(project: PathBuf) -> Result<()> {
     let loaded =
         load_project(&project).with_context(|| format!("loading {}", project.display()))?;
-    if let Err(error) = validate_with_manifest(&loaded.script, &loaded.root, &loaded.manifest) {
+    if let Err(error) = validate_with_locales(
+        &loaded.script,
+        &loaded.root,
+        &loaded.manifest,
+        &loaded.locales,
+    ) {
         for diagnostic in error.diagnostics() {
             eprintln!("{}", diagnostic.render());
         }

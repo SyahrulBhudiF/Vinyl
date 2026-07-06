@@ -14,4 +14,4 @@ pub use localize::{LocaleCatalog, LocaleError, load_locale, parse_locale};
 pub use manifest::{AssetPaths, ManifestError, ProjectManifest, ProjectMetadata, ProjectPaths};
 pub use parser::{ParseError, parse_file, parse_source};
 pub use project::{LoadedProject, ProjectError, load_project};
-pub use validate::{ValidationError, validate, validate_with_manifest};
+pub use validate::{ValidationError, validate, validate_with_locales, validate_with_manifest};

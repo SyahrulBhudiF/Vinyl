@@ -1,5 +1,6 @@
 use crate::asset::{AssetId, AssetResolver};
 use crate::diagnostics::{Diagnostic, DiagnosticSet};
+use crate::localize::LocaleCatalog;
 use crate::manifest::ProjectManifest;
 use std::collections::HashSet;
 use std::path::Path;
@@ -34,7 +35,17 @@ pub fn validate_with_manifest(
     project_root: &Path,
     manifest: &ProjectManifest,
 ) -> Result<(), ValidationError> {
-    let mut context = ValidationContext::new(project_root, manifest.clone());
+    validate_with_locales(script, project_root, manifest, &[])
+}
+
+/// Validates labels, assets, and locale entries using explicit locale catalogs.
+pub fn validate_with_locales(
+    script: &Script,
+    project_root: &Path,
+    manifest: &ProjectManifest,
+    locales: &[LocaleCatalog],
+) -> Result<(), ValidationError> {
+    let mut context = ValidationContext::new(project_root, manifest.clone(), locales);
     context.collect_labels(&script.statements);
     context.validate_statements(&script.statements);
     if context.diagnostics.is_empty() {
@@ -49,14 +60,18 @@ pub fn validate_with_manifest(
 struct ValidationContext {
     resolver: AssetResolver,
     labels: HashSet<String>,
+    text_ids: HashSet<String>,
+    locales: Vec<LocaleCatalog>,
     diagnostics: DiagnosticSet,
 }
 
 impl ValidationContext {
-    fn new(project_root: &Path, manifest: ProjectManifest) -> Self {
+    fn new(project_root: &Path, manifest: ProjectManifest, locales: &[LocaleCatalog]) -> Self {
         Self {
             resolver: AssetResolver::new(project_root, manifest),
             labels: HashSet::new(),
+            text_ids: HashSet::new(),
+            locales: locales.to_vec(),
             diagnostics: DiagnosticSet::default(),
         }
     }
@@ -111,6 +126,10 @@ impl ValidationContext {
                 StmtKind::Jump { label } if !self.labels.contains(label) => self.diagnostics.push(
                     Diagnostic::new(statement.pos.clone(), format!("missing label '{label}'")),
                 ),
+                StmtKind::Say {
+                    text_id: Some(text_id),
+                    ..
+                } => self.validate_text_id(statement.pos.clone(), text_id),
                 StmtKind::Menu { choices } => self.validate_choices(choices),
                 StmtKind::If {
                     then_body,
@@ -127,7 +146,27 @@ impl ValidationContext {
 
     fn validate_choices(&mut self, choices: &[Choice]) {
         for choice in choices {
+            if let Some(text_id) = &choice.text_id {
+                self.validate_text_id(choice.pos.clone(), text_id);
+            }
             self.validate_statements(&choice.body);
+        }
+    }
+
+    fn validate_text_id(&mut self, pos: SourcePos, text_id: &str) {
+        if !self.text_ids.insert(text_id.to_string()) {
+            self.diagnostics.push(Diagnostic::new(
+                pos.clone(),
+                format!("duplicate text id '{text_id}'"),
+            ));
+        }
+        for locale in &self.locales {
+            if locale.get(text_id).is_none() {
+                self.diagnostics.push(Diagnostic::new(
+                    pos.clone(),
+                    format!("missing locale '{}' entry '{text_id}'", locale.locale),
+                ));
+            }
         }
     }
 

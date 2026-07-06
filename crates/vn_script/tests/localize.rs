@@ -1,5 +1,5 @@
 use std::fs;
-use vn_script::{load_project, parse_locale};
+use vn_script::{ProjectManifest, load_project, parse_locale, parse_source, validate_with_locales};
 
 #[test]
 fn parses_flat_fluent_messages() {
@@ -39,4 +39,34 @@ fn project_loader_reads_locale_catalogs_from_manifest_locale_root() {
     assert_eq!(loaded.locales[0].get("intro-hello"), Some("Halo."));
 
     let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn validates_text_ids_against_loaded_locales() {
+    let script = parse_source(
+        "script/start.vn",
+        r#"label start:
+    eileen [intro-hello] "Hello."
+    menu:
+        [intro-missing] "Ask":
+            end
+"#,
+    )
+    .unwrap();
+    let locale = parse_locale("id-ID.ftl".as_ref(), "id-ID", "intro-hello = Halo.\n").unwrap();
+
+    let error = validate_with_locales(
+        &script,
+        std::path::Path::new("."),
+        &ProjectManifest::default_for_root(std::path::Path::new(".")),
+        &[locale],
+    )
+    .unwrap_err();
+
+    assert_eq!(error.diagnostics().len(), 1);
+    assert!(
+        error.diagnostics()[0]
+            .message
+            .contains("missing locale 'id-ID' entry 'intro-missing'")
+    );
 }
