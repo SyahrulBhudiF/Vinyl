@@ -15,7 +15,7 @@ pub mod systems;
 pub use camera::VnCamera;
 pub use components::{
     PresentationBackground, PresentationDialogue, PresentationMenu, PresentationMusic,
-    PresentationSprite,
+    PresentationSprite, TextReveal, TransitionAlpha,
 };
 pub use driver::VnStory;
 pub use input::{PendingChoice, apply_pending_choice, keyboard_advance_story};

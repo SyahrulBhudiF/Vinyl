@@ -1,10 +1,11 @@
 use bevy::prelude::*;
+use std::time::Duration;
 use vn_bevy::{
     BackgroundRender, MusicRender, PendingChoice, PresentationBackground, PresentationCommandQueue,
     PresentationDialogue, PresentationMenu, PresentationMusic, PresentationSprite, SpriteRender,
-    VnAssetResolver, VnBevyPlugin, VnRenderable, VnStory,
+    TextReveal, TransitionAlpha, VnAssetResolver, VnBevyPlugin, VnRenderable, VnStory,
 };
-use vn_core::{Choice, Script, SourcePos, Stmt, StmtKind, compile};
+use vn_core::{Choice, Script, SourcePos, Stmt, StmtKind, TextEffect, Transition, compile};
 use vn_runtime::PresentationCommand;
 
 fn app_with_plugin() -> App {
@@ -24,6 +25,22 @@ fn collect_backgrounds(app: &mut App) -> Vec<String> {
         .query::<&PresentationBackground>()
         .iter(app.world())
         .map(|background| background.image.clone())
+        .collect()
+}
+
+fn collect_transition_alphas(app: &mut App) -> Vec<u32> {
+    app.world_mut()
+        .query::<&TransitionAlpha>()
+        .iter(app.world())
+        .map(TransitionAlpha::alpha_permille)
+        .collect()
+}
+
+fn collect_text_reveals(app: &mut App) -> Vec<usize> {
+    app.world_mut()
+        .query::<&TextReveal>()
+        .iter(app.world())
+        .map(TextReveal::visible_chars)
         .collect()
 }
 
@@ -102,6 +119,90 @@ fn collect_sprite_renders(app: &mut App) -> Vec<(String, Vec3)> {
         .collect::<Vec<_>>();
     renders.sort_by(|left, right| left.0.cmp(&right.0));
     renders
+}
+
+#[test]
+fn transition_and_text_timers_tick_and_complete_deterministically() {
+    let mut app = app_with_plugin();
+    app.insert_resource(VnRenderable(true));
+    app.insert_resource(VnAssetResolver::new("."));
+
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "bg room".to_string(),
+            transition: Some(Transition {
+                kind: "fade".to_string(),
+                duration_ms: 1000,
+            }),
+        },
+    );
+    push(
+        &mut app,
+        PresentationCommand::ShowDialogue {
+            speaker: None,
+            text: "HelloWorld".to_string(),
+            effect: TextEffect::Typewriter {
+                chars_per_second: 10,
+            },
+        },
+    );
+    app.update();
+
+    assert_eq!(collect_transition_alphas(&mut app), vec![0, 0]);
+    assert_eq!(collect_text_reveals(&mut app), vec![0]);
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+
+    assert_eq!(collect_transition_alphas(&mut app), vec![500, 500]);
+    assert_eq!(collect_text_reveals(&mut app), vec![5]);
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+
+    assert!(collect_transition_alphas(&mut app).is_empty());
+    assert!(collect_text_reveals(&mut app).is_empty());
+}
+
+#[test]
+fn instant_commands_do_not_create_transition_state() {
+    let mut app = app_with_plugin();
+    app.insert_resource(VnRenderable(true));
+    app.insert_resource(VnAssetResolver::new("."));
+
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "bg room".to_string(),
+            transition: None,
+        },
+    );
+    push(
+        &mut app,
+        PresentationCommand::ShowSprite {
+            tag: "eileen".to_string(),
+            attrs: vec!["happy".to_string()],
+            position: "center".to_string(),
+            transition: None,
+        },
+    );
+    push(
+        &mut app,
+        PresentationCommand::ShowDialogue {
+            speaker: None,
+            text: "Hello".to_string(),
+            effect: TextEffect::Instant,
+        },
+    );
+    app.update();
+
+    assert!(collect_transition_alphas(&mut app).is_empty());
+    assert!(collect_text_reveals(&mut app).is_empty());
 }
 
 fn choice_story() -> VnStory {

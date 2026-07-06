@@ -87,3 +87,9 @@ fn parses_visual_transitions_and_text_effects() {
         }
     );
 }
+
+#[test]
+fn rejects_unknown_transition_and_text_effect() {
+    assert!(parse_source("bad.vn", "scene bg room with spin(duration=1)").is_err());
+    assert!(parse_source("bad.vn", "eileen \"Hi\" with sparkle(speed=1)").is_err());
+}

@@ -2,7 +2,9 @@ use crate::camera::spawn_camera;
 use crate::input::{apply_pending_choice, keyboard_advance_story};
 use crate::render::sync_render_entities;
 use crate::resources::{PresentationCommandQueue, VnPresentation, VnRenderable};
-use crate::systems::{apply_queued_commands, sync_presentation_entities};
+use crate::systems::{
+    apply_queued_commands, sync_presentation_entities, tick_text_reveal, tick_transition_alpha,
+};
 use bevy::prelude::*;
 
 /// Bevy plugin that owns renderer-facing VN presentation resources.
@@ -13,6 +15,7 @@ impl Plugin for VnBevyPlugin {
         app.init_resource::<VnPresentation>()
             .init_resource::<PresentationCommandQueue>()
             .init_resource::<VnRenderable>()
+            .init_resource::<Time>()
             .add_systems(Startup, spawn_camera)
             .add_systems(
                 Update,
@@ -24,6 +27,8 @@ impl Plugin for VnBevyPlugin {
                     sync_presentation_entities,
                     ApplyDeferred,
                     sync_render_entities,
+                    tick_transition_alpha,
+                    tick_text_reveal,
                 )
                     .chain(),
             );

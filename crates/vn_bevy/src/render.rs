@@ -1,4 +1,6 @@
-use crate::components::{PresentationBackground, PresentationMusic, PresentationSprite};
+use crate::components::{
+    PresentationBackground, PresentationMusic, PresentationSprite, TransitionAlpha,
+};
 use crate::resources::{VnAssetResolver, VnRenderable};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -56,14 +58,11 @@ fn sync_background(
     resolver: &Option<Res<VnAssetResolver>>,
     presentation: &RenderPresentationQueries,
 ) {
-    let image = presentation
-        .backgrounds
-        .iter()
-        .next()
-        .map(|background| background.image.clone());
+    let background = presentation.backgrounds.iter().next();
 
-    match image {
-        Some(image) => {
+    match background {
+        Some(background) => {
+            let image = background.image.clone();
             let existing = presentation.background_renders.iter().collect::<Vec<_>>();
             let keep = existing
                 .iter()
@@ -75,7 +74,8 @@ fn sync_background(
                 }
             }
             if keep.is_none() {
-                commands.spawn((
+                let alpha = transition_alpha(background.transition.clone());
+                let mut entity = commands.spawn((
                     BackgroundRender {
                         image: image.clone(),
                     },
@@ -84,6 +84,9 @@ fn sync_background(
                     })),
                     Transform::from_xyz(0.0, 0.0, -10.0),
                 ));
+                if let Some(alpha) = alpha {
+                    entity.insert(alpha);
+                }
             }
         }
         None => {
@@ -164,7 +167,8 @@ fn sync_sprites(
         if let Some((entity, _)) = existing {
             commands.entity(entity).despawn();
         }
-        commands.spawn((
+        let alpha = transition_alpha(sprite.transition.clone());
+        let mut entity = commands.spawn((
             SpriteRender {
                 tag: sprite.tag.clone(),
                 attrs: sprite.attrs.clone(),
@@ -175,6 +179,9 @@ fn sync_sprites(
             })),
             Transform::from_translation(position_to_translation(&sprite.position)),
         ));
+        if let Some(alpha) = alpha {
+            entity.insert(alpha);
+        }
     }
 }
 
@@ -212,6 +219,14 @@ fn audio_bundle(
     _resolver: &Option<Res<VnAssetResolver>>,
     _path: impl FnOnce(&VnAssetResolver) -> std::path::PathBuf,
 ) {
+}
+
+fn transition_alpha(transition: Option<vn_core::Transition>) -> Option<TransitionAlpha> {
+    let duration_ms = transition?.duration_ms;
+    (duration_ms > 0).then_some(TransitionAlpha {
+        elapsed_ms: 0,
+        duration_ms,
+    })
 }
 
 fn position_to_translation(position: &str) -> Vec3 {

@@ -313,6 +313,9 @@ fn parse_text_effect(
 
 fn parse_transition(text: &str, line: &Line, parser: &Parser) -> Result<Transition, ParseError> {
     let (kind, args) = parse_call(text);
+    if !matches!(kind, "fade" | "dissolve") {
+        return Err(parser.error(line, "unknown transition"));
+    }
     Ok(Transition {
         kind: kind.to_string(),
         duration_ms: parse_duration_ms(args, 0, line, parser)?,

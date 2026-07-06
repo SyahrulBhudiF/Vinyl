@@ -5,7 +5,24 @@ use vn_script::ProjectManifest;
 
 /// Bevy resource containing serializable VN presentation state.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Resource)]
-pub struct VnPresentation(pub vn_core::PresentationSnapshot);
+pub struct VnPresentation {
+    pub snapshot: vn_core::PresentationSnapshot,
+    pub pending_commands: Vec<PresentationCommand>,
+}
+
+impl std::ops::Deref for VnPresentation {
+    type Target = vn_core::PresentationSnapshot;
+
+    fn deref(&self) -> &Self::Target {
+        &self.snapshot
+    }
+}
+
+impl std::ops::DerefMut for VnPresentation {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.snapshot
+    }
+}
 
 /// FIFO command queue from runtime orchestration into Bevy systems.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Resource)]
