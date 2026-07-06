@@ -107,6 +107,26 @@ fn run_uses_requested_locale() {
 }
 
 #[test]
+fn check_reports_parse_errors_from_multiple_files() {
+    let root = temp_project("parse_many");
+    fs::create_dir_all(root.join("script")).unwrap();
+    fs::write(root.join("script/a.vn"), "wat\n").unwrap();
+    fs::write(root.join("script/b.vn"), "nope\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .arg("check")
+        .arg(&root)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("a.vn:1:1: unknown statement"));
+    assert!(stderr.contains("b.vn:1:1: unknown statement"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn check_reports_all_missing_labels_and_assets() {
     let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
         .args(["check", "../../fixtures/bad_missing"])

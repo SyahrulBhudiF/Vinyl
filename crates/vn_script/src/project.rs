@@ -1,3 +1,4 @@
+use crate::diagnostics::Diagnostic;
 use crate::localize::{LocaleCatalog, LocaleError, load_locale};
 use crate::manifest::{ManifestError, ProjectManifest, load_manifest};
 use crate::parser::{ParseError, parse_file};
@@ -28,6 +29,8 @@ pub enum ProjectError {
     Manifest(#[from] ManifestError),
     #[error("script parse failed: {0}")]
     Parse(#[from] ParseError),
+    #[error("script parse failed")]
+    Diagnostics(Vec<Diagnostic>),
     #[error("locale load failed: {0}")]
     Locale(#[from] LocaleError),
 }
@@ -42,6 +45,7 @@ pub fn load_project(root: impl AsRef<Path>) -> Result<LoadedProject, ProjectErro
     files.sort();
 
     let mut statements = Vec::new();
+    let mut diagnostics = Vec::new();
     let mut hasher = blake3::Hasher::new();
     for file in files {
         let source = fs::read_to_string(&file).map_err(|source| ProjectError::ReadFile {
@@ -49,8 +53,13 @@ pub fn load_project(root: impl AsRef<Path>) -> Result<LoadedProject, ProjectErro
             source,
         })?;
         hash_script_file(&mut hasher, &root, &file, &source);
-        let parsed = parse_file(&file, &source)?;
-        statements.extend(parsed.statements);
+        match parse_file(&file, &source) {
+            Ok(parsed) => statements.extend(parsed.statements),
+            Err(error) => diagnostics.push(Diagnostic::new(error.pos, error.message)),
+        }
+    }
+    if !diagnostics.is_empty() {
+        return Err(ProjectError::Diagnostics(diagnostics));
     }
 
     let locale_root = root.join(&manifest.paths.locales);

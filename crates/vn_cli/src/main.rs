@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use vn_core::{Preferences, ProjectId, SaveFile, Vm, VmEvent, compile};
 use vn_runtime::{apply_command, commands_from_event};
 use vn_script::{
-    LocaleCatalog, extract_messages, load_project, render_messages, validate_with_locales,
+    LocaleCatalog, ProjectError, extract_messages, load_project, render_messages,
+    validate_with_locales,
 };
 
 #[derive(Debug, Parser)]
@@ -43,8 +44,7 @@ fn main() -> Result<()> {
 }
 
 fn check(project: PathBuf, locale: Option<String>) -> Result<()> {
-    let loaded =
-        load_project(&project).with_context(|| format!("loading {}", project.display()))?;
+    let loaded = load_project_or_print(&project)?;
     if let Err(error) = validate_with_locales(
         &loaded.script,
         &loaded.root,
@@ -61,15 +61,13 @@ fn check(project: PathBuf, locale: Option<String>) -> Result<()> {
 }
 
 fn extract_locales(project: PathBuf) -> Result<()> {
-    let loaded =
-        load_project(&project).with_context(|| format!("loading {}", project.display()))?;
+    let loaded = load_project_or_print(&project)?;
     print!("{}", render_messages(&extract_messages(&loaded.script)));
     Ok(())
 }
 
 fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
-    let loaded =
-        load_project(&project).with_context(|| format!("loading {}", project.display()))?;
+    let loaded = load_project_or_print(&project)?;
     if let Err(error) = validate_with_locales(
         &loaded.script,
         &loaded.root,
@@ -130,6 +128,19 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         println!("{event}");
     }
     Ok(())
+}
+
+fn load_project_or_print(project: &std::path::Path) -> Result<vn_script::LoadedProject> {
+    match load_project(project) {
+        Ok(project) => Ok(project),
+        Err(ProjectError::Diagnostics(diagnostics)) => {
+            for diagnostic in diagnostics {
+                eprintln!("{}", diagnostic.render());
+            }
+            bail!("parse failed");
+        }
+        Err(error) => Err(error).with_context(|| format!("loading {}", project.display())),
+    }
 }
 
 fn selected_locales(locales: &[LocaleCatalog], locale: Option<&str>) -> Result<Vec<LocaleCatalog>> {
