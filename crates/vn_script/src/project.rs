@@ -1,7 +1,7 @@
 use crate::diagnostics::Diagnostic;
 use crate::localize::{LocaleCatalog, LocaleError, load_locale};
 use crate::manifest::{ManifestError, ProjectManifest, load_manifest};
-use crate::parser::{ParseError, parse_file};
+use crate::parser::{ParseError, parse_file_recovering};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -53,10 +53,9 @@ pub fn load_project(root: impl AsRef<Path>) -> Result<LoadedProject, ProjectErro
             source,
         })?;
         hash_script_file(&mut hasher, &root, &file, &source);
-        match parse_file(&file, &source) {
-            Ok(parsed) => statements.extend(parsed.statements),
-            Err(error) => diagnostics.push(Diagnostic::new(error.pos, error.message)),
-        }
+        let (parsed, mut parse_diagnostics) = parse_file_recovering(&file, &source);
+        statements.extend(parsed.statements);
+        diagnostics.append(&mut parse_diagnostics);
     }
     if !diagnostics.is_empty() {
         return Err(ProjectError::Diagnostics(diagnostics));

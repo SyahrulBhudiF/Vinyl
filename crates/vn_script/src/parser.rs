@@ -1,3 +1,4 @@
+use crate::diagnostics::Diagnostic;
 use std::path::Path;
 use thiserror::Error;
 use vn_core::{
@@ -21,6 +22,11 @@ pub fn parse_source(file: impl Into<String>, source: &str) -> Result<Script, Par
 /// Parses a source string using a path as file name.
 pub fn parse_file(path: &Path, source: &str) -> Result<Script, ParseError> {
     parse_source(path.display().to_string(), source)
+}
+
+/// Parses a file while collecting recoverable diagnostics.
+pub fn parse_file_recovering(path: &Path, source: &str) -> (Script, Vec<Diagnostic>) {
+    Parser::new(path.display().to_string(), source).parse_script_recovering()
 }
 
 #[derive(Clone, Debug)]
@@ -69,6 +75,19 @@ impl Parser {
         Ok(Script { statements })
     }
 
+    fn parse_script_recovering(mut self) -> (Script, Vec<Diagnostic>) {
+        let mut diagnostics = Vec::new();
+        let statements = self.parse_block_recovering(0, &mut diagnostics);
+        while let Some(line) = self.current().cloned() {
+            diagnostics.push(Diagnostic::new(
+                self.pos(&line, 1),
+                "unexpected indentation",
+            ));
+            self.index += 1;
+        }
+        (Script { statements }, diagnostics)
+    }
+
     fn parse_block(&mut self, indent: usize) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = Vec::new();
         while let Some(line) = self.current() {
@@ -89,6 +108,50 @@ impl Parser {
             }
         }
         Ok(statements)
+    }
+
+    fn parse_block_recovering(
+        &mut self,
+        indent: usize,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Vec<Stmt> {
+        let mut statements = Vec::new();
+        while let Some(line) = self.current() {
+            if line.indent < indent {
+                break;
+            }
+            if line.indent > indent {
+                diagnostics.push(Diagnostic::new(
+                    self.pos(line, 1),
+                    "unexpected indented block",
+                ));
+                self.index += 1;
+                continue;
+            }
+            let start = self.index;
+            match self.parse_statement(indent) {
+                Ok(statement) => {
+                    let opens_label_block = matches!(statement.kind, StmtKind::Label { .. });
+                    statements.push(statement);
+                    if opens_label_block
+                        && let Some(next) = self.current()
+                        && next.indent > indent
+                    {
+                        statements.extend(self.parse_block_recovering(next.indent, diagnostics));
+                    }
+                }
+                Err(error) => {
+                    diagnostics.push(Diagnostic::new(error.pos, error.message));
+                    if self.index == start {
+                        self.index += 1;
+                    }
+                    while self.current().is_some_and(|line| line.indent > indent) {
+                        self.index += 1;
+                    }
+                }
+            }
+        }
+        statements
     }
 
     fn parse_statement(&mut self, indent: usize) -> Result<Stmt, ParseError> {
