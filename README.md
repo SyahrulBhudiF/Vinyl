@@ -1,7 +1,7 @@
 # Vinyl
 
-Vinyl is a visual novel engine written in Rust, but **game developers do not need to write or build Rust**.
-The intended workflow is simple: download the prebuilt `vn_cli` binary, create a project, write `.vn` scripts, add assets, validate, and run/export through the tooling.
+Vinyl is a Rust visual novel engine for people writing games.
+Download `vn_cli`, make a project, write `.vn` scripts, add assets, then check and run it.
 
 ## Who is this for?
 
@@ -43,6 +43,23 @@ Linux/macOS example:
 chmod +x vn_cli-linux-x86_64
 mv vn_cli-linux-x86_64 vn_cli
 ./vn_cli --help
+```
+
+Windows example:
+
+1. Download `vn_cli-windows-x86_64.exe`.
+2. Rename it to `vn_cli.exe`.
+3. Move it to a folder, for example `C:\Tools\Vinyl\`.
+4. Add that folder to `Path`:
+   - Start menu → search “Environment Variables”.
+   - Open “Edit the system environment variables”.
+   - Click “Environment Variables…”.
+   - Under user variables, select `Path` → “Edit”.
+   - Add `C:\Tools\Vinyl\`.
+5. Open a new PowerShell window:
+
+```powershell
+vn_cli --help
 ```
 
 ### Engine development install
