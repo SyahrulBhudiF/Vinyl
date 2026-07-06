@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use vn_core::{
     AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, Value, Vm, VmEvent,
     compile,
@@ -167,6 +169,70 @@ fn branch_uses_deterministic_values() {
         Ok(VmEvent::Dialogue {
             speaker: None,
             text: "seen".to_string(),
+            effect: vn_core::TextEffect::Instant,
+        })
+    );
+}
+
+#[test]
+fn vm_resolves_text_ids_with_fallback_text() {
+    let script = Script {
+        statements: vec![
+            Stmt {
+                kind: StmtKind::Say {
+                    speaker: Some("eileen".to_string()),
+                    text_id: Some("intro-hello".to_string()),
+                    text: "Hello.".to_string(),
+                    effect: vn_core::TextEffect::Instant,
+                },
+                pos: pos(),
+            },
+            Stmt {
+                kind: StmtKind::Menu {
+                    choices: vec![Choice {
+                        text_id: Some("intro-ask".to_string()),
+                        text: "Ask".to_string(),
+                        condition: None,
+                        body: vec![Stmt {
+                            kind: StmtKind::Say {
+                                speaker: None,
+                                text_id: Some("intro-missing".to_string()),
+                                text: "Fallback.".to_string(),
+                                effect: vn_core::TextEffect::Instant,
+                            },
+                            pos: pos(),
+                        }],
+                        pos: pos(),
+                    }],
+                },
+                pos: pos(),
+            },
+        ],
+    };
+    let mut translations = HashMap::new();
+    translations.insert("intro-hello".to_string(), "Halo.".to_string());
+    translations.insert("intro-ask".to_string(), "Tanya".to_string());
+    let mut vm = Vm::with_translations(compile(&script), translations);
+
+    assert_eq!(
+        vm.continue_until_interaction(),
+        Ok(VmEvent::Dialogue {
+            speaker: Some("eileen".to_string()),
+            text: "Halo.".to_string(),
+            effect: vn_core::TextEffect::Instant,
+        })
+    );
+    assert_eq!(
+        vm.continue_until_interaction(),
+        Ok(VmEvent::Menu {
+            choices: vec!["Tanya".to_string()]
+        })
+    );
+    assert_eq!(
+        vm.choose(0),
+        Ok(VmEvent::Dialogue {
+            speaker: None,
+            text: "Fallback.".to_string(),
             effect: vn_core::TextEffect::Instant,
         })
     );

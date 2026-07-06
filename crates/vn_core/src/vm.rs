@@ -71,6 +71,7 @@ pub struct Vm {
     state: VmState,
     rollback: Vec<(VmState, PresentationSnapshot)>,
     presentation: PresentationSnapshot,
+    translations: HashMap<String, String>,
 }
 
 impl Vm {
@@ -81,7 +82,20 @@ impl Vm {
             state: VmState::default(),
             rollback: Vec::new(),
             presentation: PresentationSnapshot::default(),
+            translations: HashMap::new(),
         }
+    }
+
+    /// Creates a VM with localized text overrides keyed by script text id.
+    pub fn with_translations(program: Program, translations: HashMap<String, String>) -> Self {
+        let mut vm = Self::new(program);
+        vm.translations = translations;
+        vm
+    }
+
+    /// Replaces localized text overrides.
+    pub fn set_translations(&mut self, translations: HashMap<String, String>) {
+        self.translations = translations;
     }
 
     /// Restores a VM from serialized state and presentation.
@@ -95,6 +109,7 @@ impl Vm {
             state,
             rollback: Vec::new(),
             presentation,
+            translations: HashMap::new(),
         }
     }
 
@@ -121,12 +136,13 @@ impl Vm {
             match kind {
                 OpKind::Say {
                     speaker,
-                    text_id: _,
+                    text_id,
                     text,
                     effect,
                 } => {
                     self.checkpoint();
                     self.state.pc += 1;
+                    let text = self.resolve_text(text_id.as_deref(), &text);
                     self.state.history.push(HistoryEntry {
                         speaker: speaker.clone(),
                         text: text.clone(),
@@ -194,7 +210,7 @@ impl Vm {
                         .state
                         .current_choices
                         .iter()
-                        .map(|choice| choice.text.clone())
+                        .map(|choice| self.resolve_text(choice.text_id.as_deref(), &choice.text))
                         .collect();
                     self.presentation.menu = Some(texts);
                     return Ok(VmEvent::Menu {
@@ -264,6 +280,13 @@ impl Vm {
             });
         }
         None
+    }
+
+    fn resolve_text(&self, text_id: Option<&str>, fallback: &str) -> String {
+        text_id
+            .and_then(|text_id| self.translations.get(text_id))
+            .cloned()
+            .unwrap_or_else(|| fallback.to_string())
     }
 
     fn checkpoint(&mut self) {

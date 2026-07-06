@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use vn_core::{ProjectId, SaveFile, Vm, VmEvent, compile};
 use vn_runtime::{apply_command, commands_from_event};
@@ -61,7 +62,19 @@ fn run(project: PathBuf) -> Result<()> {
         bail!("validation failed");
     }
     let program = compile(&loaded.script);
-    let mut vm = Vm::new(program.clone());
+    let translations = loaded
+        .locales
+        .iter()
+        .find(|locale| locale.locale == loaded.manifest.project.default_locale)
+        .map(|locale| {
+            locale
+                .messages
+                .iter()
+                .map(|(id, text)| (id.clone(), text.clone()))
+                .collect()
+        })
+        .unwrap_or_else(HashMap::new);
+    let mut vm = Vm::with_translations(program.clone(), translations);
     let mut events = Vec::new();
     let mut presentation = Default::default();
     loop {
