@@ -10,7 +10,9 @@ pub mod validate;
 
 pub use asset::{AssetId, AssetResolver};
 pub use diagnostics::{Diagnostic, DiagnosticSet};
-pub use localize::{LocaleCatalog, LocaleError, load_locale, parse_locale};
+pub use localize::{
+    LocaleCatalog, LocaleError, extract_messages, load_locale, parse_locale, render_messages,
+};
 pub use manifest::{AssetPaths, ManifestError, ProjectManifest, ProjectMetadata, ProjectPaths};
 pub use parser::{ParseError, parse_file, parse_source};
 pub use project::{LoadedProject, ProjectError, load_project};

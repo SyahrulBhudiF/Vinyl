@@ -2,9 +2,11 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use vn_core::{ProjectId, SaveFile, Vm, VmEvent, compile};
+use vn_core::{Preferences, ProjectId, SaveFile, Vm, VmEvent, compile};
 use vn_runtime::{apply_command, commands_from_event};
-use vn_script::{load_project, validate_with_locales};
+use vn_script::{
+    LocaleCatalog, extract_messages, load_project, render_messages, validate_with_locales,
+};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
@@ -16,27 +18,38 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Parse and validate a project.
-    Check { project: PathBuf },
+    Check {
+        project: PathBuf,
+        #[arg(long)]
+        locale: Option<String>,
+    },
+    /// Print Fluent entries extracted from script text ids.
+    ExtractLocales { project: PathBuf },
     /// Run deterministic CLI smoke execution.
-    Run { project: PathBuf },
+    Run {
+        project: PathBuf,
+        #[arg(long)]
+        locale: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Check { project } => check(project),
-        Command::Run { project } => run(project),
+        Command::Check { project, locale } => check(project, locale),
+        Command::ExtractLocales { project } => extract_locales(project),
+        Command::Run { project, locale } => run(project, locale),
     }
 }
 
-fn check(project: PathBuf) -> Result<()> {
+fn check(project: PathBuf, locale: Option<String>) -> Result<()> {
     let loaded =
         load_project(&project).with_context(|| format!("loading {}", project.display()))?;
     if let Err(error) = validate_with_locales(
         &loaded.script,
         &loaded.root,
         &loaded.manifest,
-        &loaded.locales,
+        &selected_locales(&loaded.locales, locale.as_deref())?,
     ) {
         for diagnostic in error.diagnostics() {
             eprintln!("{}", diagnostic.render());
@@ -47,33 +60,30 @@ fn check(project: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn run(project: PathBuf) -> Result<()> {
+fn extract_locales(project: PathBuf) -> Result<()> {
+    let loaded =
+        load_project(&project).with_context(|| format!("loading {}", project.display()))?;
+    print!("{}", render_messages(&extract_messages(&loaded.script)));
+    Ok(())
+}
+
+fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
     let loaded =
         load_project(&project).with_context(|| format!("loading {}", project.display()))?;
     if let Err(error) = validate_with_locales(
         &loaded.script,
         &loaded.root,
         &loaded.manifest,
-        &loaded.locales,
+        &selected_locales(&loaded.locales, locale.as_deref())?,
     ) {
         for diagnostic in error.diagnostics() {
             eprintln!("{}", diagnostic.render());
         }
         bail!("validation failed");
     }
+    let active_locale = locale.unwrap_or_else(|| loaded.manifest.project.default_locale.clone());
     let program = compile(&loaded.script);
-    let translations = loaded
-        .locales
-        .iter()
-        .find(|locale| locale.locale == loaded.manifest.project.default_locale)
-        .map(|locale| {
-            locale
-                .messages
-                .iter()
-                .map(|(id, text)| (id.clone(), text.clone()))
-                .collect()
-        })
-        .unwrap_or_else(HashMap::new);
+    let translations = translations_for(&loaded.locales, &active_locale);
     let mut vm = Vm::with_translations(program.clone(), translations);
     let mut events = Vec::new();
     let mut presentation = Default::default();
@@ -90,12 +100,16 @@ fn run(project: PathBuf) -> Result<()> {
                 script_hash: loaded.script_hash.clone(),
                 vm: vm.state().clone(),
                 presentation: vm.presentation().clone(),
-                preferences: Default::default(),
+                preferences: Preferences {
+                    locale: Some(active_locale.clone()),
+                    ..Default::default()
+                },
                 screenshot_png: Vec::new(),
                 timestamp: 0,
             })?;
             let save: SaveFile = serde_json::from_str(&save_json)?;
             let mut restored = Vm::from_parts(program, save.vm, save.presentation);
+            restored.set_translations(translations_for(&loaded.locales, &active_locale));
             let next = restored.choose(0)?;
             for command in commands_from_event(&next) {
                 apply_command(&mut presentation, &command);
@@ -116,6 +130,32 @@ fn run(project: PathBuf) -> Result<()> {
         println!("{event}");
     }
     Ok(())
+}
+
+fn selected_locales(locales: &[LocaleCatalog], locale: Option<&str>) -> Result<Vec<LocaleCatalog>> {
+    match locale {
+        Some(locale) => locales
+            .iter()
+            .find(|catalog| catalog.locale == locale)
+            .cloned()
+            .map(|catalog| vec![catalog])
+            .with_context(|| format!("locale '{locale}' not loaded")),
+        None => Ok(locales.to_vec()),
+    }
+}
+
+fn translations_for(locales: &[LocaleCatalog], locale: &str) -> HashMap<String, String> {
+    locales
+        .iter()
+        .find(|catalog| catalog.locale == locale)
+        .map(|catalog| {
+            catalog
+                .messages
+                .iter()
+                .map(|(id, text)| (id.clone(), text.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn format_event(event: &VmEvent) -> String {

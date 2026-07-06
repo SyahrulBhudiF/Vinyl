@@ -60,6 +60,7 @@ pub struct SaveFile {
 pub struct Preferences {
     pub text_speed: u16,
     pub auto_advance: bool,
+    pub locale: Option<String>,
 }
 
 impl Default for Preferences {
@@ -67,6 +68,7 @@ impl Default for Preferences {
         Self {
             text_speed: 30,
             auto_advance: false,
+            locale: None,
         }
     }
 }
