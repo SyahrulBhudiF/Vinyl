@@ -12,6 +12,8 @@ const vnGrammar = JSON.parse(
 );
 
 export default defineConfig({
+  site: 'https://syahrulbhudif.github.io',
+  base: '/Vinyl',
   integrations: [
     starlight({
       title: 'Vinyl',
