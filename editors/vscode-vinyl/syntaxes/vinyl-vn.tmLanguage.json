@@ -4,18 +4,137 @@
   "scopeName": "source.vinyl-vn",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#labels" },
+    { "include": "#scene" },
+    { "include": "#show" },
+    { "include": "#music" },
+    { "include": "#jump" },
+    { "include": "#menu" },
+    { "include": "#end" },
+    { "include": "#speakerLine" },
     { "include": "#strings" },
     { "include": "#textIds" },
     { "include": "#variables" },
     { "include": "#numbers" },
-    { "include": "#keywords" },
-    { "include": "#operators" },
-    { "include": "#speaker" }
+    { "include": "#effects" },
+    { "include": "#operators" }
   ],
   "repository": {
     "comments": {
       "patterns": [
         { "name": "comment.line.number-sign.vinyl-vn", "match": "#.*$" }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(label)\\s+([A-Za-z_][A-Za-z0-9_]*)(:)",
+          "captures": {
+            "2": { "name": "keyword.control.vinyl-vn" },
+            "3": { "name": "entity.name.label.vinyl-vn" },
+            "4": { "name": "punctuation.separator.colon.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "scene": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(scene)\\s+(bg)\\s+([A-Za-z0-9_./-]+)",
+          "captures": {
+            "2": { "name": "support.function.command.vinyl-vn" },
+            "3": { "name": "storage.type.asset.vinyl-vn" },
+            "4": { "name": "string.unquoted.asset.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "show": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(show)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s+([A-Za-z0-9_ -]+?)\\s+(at)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "2": { "name": "support.function.command.vinyl-vn" },
+            "3": { "name": "entity.name.character.vinyl-vn" },
+            "4": { "name": "string.unquoted.sprite-state.vinyl-vn" },
+            "5": { "name": "keyword.other.position.vinyl-vn" },
+            "6": { "name": "constant.language.position.vinyl-vn" }
+          }
+        },
+        {
+          "match": "^(\\s*)(hide)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "2": { "name": "support.function.command.vinyl-vn" },
+            "3": { "name": "entity.name.character.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "music": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(play)\\s+(music)\\s+([A-Za-z0-9_./-]+)",
+          "captures": {
+            "2": { "name": "support.function.command.vinyl-vn" },
+            "3": { "name": "storage.type.asset.vinyl-vn" },
+            "4": { "name": "string.unquoted.asset.vinyl-vn" }
+          }
+        },
+        {
+          "match": "^(\\s*)(stop)\\s+(music)",
+          "captures": {
+            "2": { "name": "support.function.command.vinyl-vn" },
+            "3": { "name": "storage.type.asset.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "jump": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(jump)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "2": { "name": "keyword.control.vinyl-vn" },
+            "3": { "name": "entity.name.label.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "menu": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(menu)(:)",
+          "captures": {
+            "2": { "name": "keyword.control.vinyl-vn" },
+            "3": { "name": "punctuation.separator.colon.vinyl-vn" }
+          }
+        },
+        {
+          "match": "\\b(if|else)\\b",
+          "captures": {
+            "1": { "name": "keyword.control.conditional.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "end": {
+      "patterns": [
+        {
+          "match": "^(\\s*)(end)\\b",
+          "captures": {
+            "2": { "name": "keyword.control.vinyl-vn" }
+          }
+        }
+      ]
+    },
+    "speakerLine": {
+      "patterns": [
+        {
+          "match": "^(\\s*)([A-Za-z_][A-Za-z0-9_]*)(?=\\s+(?:\\[[A-Za-z0-9_.-]+\\]\\s+)?\")",
+          "captures": {
+            "2": { "name": "variable.parameter.speaker.vinyl-vn" }
+          }
+        }
       ]
     },
     "strings": {
@@ -45,30 +164,15 @@
         { "name": "constant.numeric.vinyl-vn", "match": "\\b\\d+(?:\\.\\d+)?\\b" }
       ]
     },
-    "keywords": {
+    "effects": {
       "patterns": [
-        {
-          "name": "keyword.control.vinyl-vn",
-          "match": "\\b(?:label|menu|jump|end|if|else)\\b"
-        },
-        {
-          "name": "keyword.other.vinyl-vn",
-          "match": "\\b(?:scene|show|hide|at|with|play|stop|music|bg)\\b"
-        },
-        {
-          "name": "support.function.effect.vinyl-vn",
-          "match": "\\b(?:fade|dissolve|instant|typewriter)\\b"
-        }
+        { "name": "keyword.other.effect.vinyl-vn", "match": "\\b(with|at)\\b" },
+        { "name": "support.function.effect.vinyl-vn", "match": "\\b(fade|dissolve|instant|typewriter)\\b" }
       ]
     },
     "operators": {
       "patterns": [
         { "name": "keyword.operator.vinyl-vn", "match": "==|!=|>=|<=|\\+=|-=|&&|\\|\\||[=:<>+\\-*/]" }
-      ]
-    },
-    "speaker": {
-      "patterns": [
-        { "name": "entity.name.speaker.vinyl-vn", "match": "^\\s*[A-Za-z_][A-Za-z0-9_]*(?=\\s+(?:\\[[A-Za-z0-9_.-]+\\]\\s+)?\")" }
       ]
     }
   }
