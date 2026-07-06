@@ -7,13 +7,31 @@
   "engines": {
     "vscode": "^1.90.0"
   },
-  "categories": ["Programming Languages"],
+  "scripts": {
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "latest"
+  },
+  "files": [
+    "language-configuration.json",
+    "syntaxes/vinyl-vn.tmLanguage.json",
+    "README.md"
+  ],
+  "categories": [
+    "Programming Languages"
+  ],
   "contributes": {
     "languages": [
       {
         "id": "vinyl-vn",
-        "aliases": ["Vinyl VN", "vn"],
-        "extensions": [".vn"],
+        "aliases": [
+          "Vinyl VN",
+          "vn"
+        ],
+        "extensions": [
+          ".vn"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],

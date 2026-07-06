@@ -3,6 +3,12 @@
 **/*.rs.bk
 Cargo.lock
 
+# JS tooling
+node_modules/
+dist/
+.astro/
+*.vsix
+
 # IDE
 .idea/
 .vscode/

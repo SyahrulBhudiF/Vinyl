@@ -11,6 +11,7 @@ export default defineConfig({
           label: 'Start',
           items: [
             { label: 'Install', slug: 'install' },
+            { label: 'Editor Setup', slug: 'editor-setup' },
             { label: 'Project Layout', slug: 'project-layout' },
           ],
         },
