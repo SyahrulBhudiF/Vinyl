@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -14,6 +17,7 @@ jobs:
           - os: ubuntu-latest
             artifact: vn_cli-linux-x86_64
             bin: target/release/vn_cli
+            package: true
           - os: macos-latest
             artifact: vn_cli-macos-aarch64
             bin: target/release/vn_cli
@@ -28,6 +32,50 @@ jobs:
       - run: cargo build -p vn_cli --release --no-default-features
       - shell: bash
         run: cp "${{ matrix.bin }}" "${{ matrix.artifact }}"
+      - if: matrix.package == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist/deb/usr/bin dist/rpm/SOURCES dist/rpm/SPECS
+          install -m 0755 target/release/vn_cli dist/deb/usr/bin/vn_cli
+          mkdir -p dist/deb/DEBIAN
+          cat > dist/deb/DEBIAN/control <<EOF
+          Package: vinyl
+          Version: ${version}
+          Section: games
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Vinyl contributors
+          Description: Visual novel engine CLI
+          EOF
+          dpkg-deb --build dist/deb "vinyl_${version}_amd64.deb"
+          cp target/release/vn_cli dist/rpm/SOURCES/vn_cli
+          cat > dist/rpm/SPECS/vinyl.spec <<EOF
+          Name: vinyl
+          Version: ${version}
+          Release: 1%{?dist}
+          Summary: Visual novel engine CLI
+          License: MIT
+          BuildArch: x86_64
+
+          %description
+          Visual novel engine CLI.
+
+          %install
+          mkdir -p %{buildroot}%{_bindir}
+          install -m 0755 %{_sourcedir}/vn_cli %{buildroot}%{_bindir}/vn_cli
+
+          %files
+          %{_bindir}/vn_cli
+          EOF
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          rpmbuild --define "_topdir $PWD/dist/rpm" -bb dist/rpm/SPECS/vinyl.spec
+          cp dist/rpm/RPMS/x86_64/*.rpm .
       - uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.artifact }}
+          files: |
+            ${{ matrix.artifact }}
+            *.deb
+            *.rpm
