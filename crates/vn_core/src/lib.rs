@@ -7,7 +7,8 @@ pub mod save;
 pub mod vm;
 
 pub use ast::{
-    AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, UnaryOp, Value,
+    AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, TextEffect, Transition,
+    UnaryOp, Value,
 };
 pub use compile::compile;
 pub use ir::{MenuChoice, Op, OpId, OpKind, Program};

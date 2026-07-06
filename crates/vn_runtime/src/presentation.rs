@@ -1,13 +1,19 @@
-use vn_core::{DialogueSnapshot, PresentationSnapshot, SpriteSnapshot, VmEvent};
+use vn_core::{
+    DialogueSnapshot, PresentationSnapshot, SpriteSnapshot, TextEffect, Transition, VmEvent,
+};
 
 /// Renderer-independent command emitted from VM events.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PresentationCommand {
-    SetBackground(String),
+    SetBackground {
+        image: String,
+        transition: Option<Transition>,
+    },
     ShowSprite {
         tag: String,
         attrs: Vec<String>,
         position: String,
+        transition: Option<Transition>,
     },
     HideSprite(String),
     PlayMusic(String),
@@ -15,6 +21,7 @@ pub enum PresentationCommand {
     ShowDialogue {
         speaker: Option<String>,
         text: String,
+        effect: TextEffect,
     },
     ShowMenu(Vec<String>),
     ClearMenu,
@@ -23,22 +30,32 @@ pub enum PresentationCommand {
 /// Converts a VM event to presentation commands.
 pub fn commands_from_event(event: &VmEvent) -> Vec<PresentationCommand> {
     match event {
-        VmEvent::Dialogue { speaker, text } => vec![
+        VmEvent::Dialogue {
+            speaker,
+            text,
+            effect,
+        } => vec![
             PresentationCommand::ClearMenu,
             PresentationCommand::ShowDialogue {
                 speaker: speaker.clone(),
                 text: text.clone(),
+                effect: effect.clone(),
             },
         ],
-        VmEvent::Scene { image } => vec![PresentationCommand::SetBackground(image.clone())],
+        VmEvent::Scene { image, transition } => vec![PresentationCommand::SetBackground {
+            image: image.clone(),
+            transition: transition.clone(),
+        }],
         VmEvent::Show {
             tag,
             attrs,
             position,
+            transition,
         } => vec![PresentationCommand::ShowSprite {
             tag: tag.clone(),
             attrs: attrs.clone(),
             position: position.clone(),
+            transition: transition.clone(),
         }],
         VmEvent::Hide { tag } => vec![PresentationCommand::HideSprite(tag.clone())],
         VmEvent::PlayMusic { path } => vec![PresentationCommand::PlayMusic(path.clone())],
@@ -51,7 +68,7 @@ pub fn commands_from_event(event: &VmEvent) -> Vec<PresentationCommand> {
 /// Applies a presentation command to a serializable snapshot.
 pub fn apply_command(snapshot: &mut PresentationSnapshot, command: &PresentationCommand) {
     match command {
-        PresentationCommand::SetBackground(image) => {
+        PresentationCommand::SetBackground { image, .. } => {
             snapshot.background = Some(image.clone());
             snapshot.sprites.clear();
         }
@@ -59,6 +76,7 @@ pub fn apply_command(snapshot: &mut PresentationSnapshot, command: &Presentation
             tag,
             attrs,
             position,
+            ..
         } => {
             snapshot.sprites.insert(
                 tag.clone(),
@@ -77,7 +95,7 @@ pub fn apply_command(snapshot: &mut PresentationSnapshot, command: &Presentation
         PresentationCommand::StopMusic => {
             snapshot.music = None;
         }
-        PresentationCommand::ShowDialogue { speaker, text } => {
+        PresentationCommand::ShowDialogue { speaker, text, .. } => {
             snapshot.dialogue = Some(DialogueSnapshot {
                 speaker: speaker.clone(),
                 text: text.clone(),

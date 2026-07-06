@@ -1,4 +1,4 @@
-use vn_core::{PresentationSnapshot, SpriteSnapshot, VmEvent};
+use vn_core::{PresentationSnapshot, SpriteSnapshot, TextEffect, VmEvent};
 use vn_runtime::{PresentationCommand, apply_command, commands_from_event};
 
 #[test]
@@ -6,6 +6,7 @@ fn dialogue_event_clears_menu_and_sets_dialogue() {
     let event = VmEvent::Dialogue {
         speaker: Some("eileen".to_string()),
         text: "Hello.".to_string(),
+        effect: TextEffect::Instant,
     };
     let commands = commands_from_event(&event);
     assert_eq!(
@@ -15,6 +16,7 @@ fn dialogue_event_clears_menu_and_sets_dialogue() {
             PresentationCommand::ShowDialogue {
                 speaker: Some("eileen".to_string()),
                 text: "Hello.".to_string(),
+                effect: TextEffect::Instant,
             },
         ]
     );
@@ -39,11 +41,15 @@ fn scene_command_resets_sprites() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
             position: "center".to_string(),
+            transition: None,
         },
     );
     apply_command(
         &mut snapshot,
-        &PresentationCommand::SetBackground("bg room".to_string()),
+        &PresentationCommand::SetBackground {
+            image: "bg room".to_string(),
+            transition: None,
+        },
     );
 
     assert_eq!(snapshot.background.as_deref(), Some("bg room"));
@@ -65,6 +71,7 @@ fn sprite_and_audio_commands_update_only_their_targeted_snapshot_fields() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string(), "casual".to_string()],
             position: "left".to_string(),
+            transition: None,
         },
     );
     apply_command(
@@ -73,6 +80,7 @@ fn sprite_and_audio_commands_update_only_their_targeted_snapshot_fields() {
             tag: "bob".to_string(),
             attrs: vec!["neutral".to_string()],
             position: "right".to_string(),
+            transition: None,
         },
     );
     apply_command(
@@ -114,11 +122,13 @@ fn event_commands_apply_to_the_same_snapshot_state_as_the_vm_events_describe() {
     let events = [
         VmEvent::Scene {
             image: "bg classroom".to_string(),
+            transition: None,
         },
         VmEvent::Show {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
             position: "center".to_string(),
+            transition: None,
         },
         VmEvent::PlayMusic {
             path: "assets/audio/bgm/theme.ogg".to_string(),

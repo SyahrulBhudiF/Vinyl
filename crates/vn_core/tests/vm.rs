@@ -24,6 +24,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
             Stmt {
                 kind: StmtKind::Scene {
                     image: "bg room".to_string(),
+                    transition: None,
                 },
                 pos: pos(),
             },
@@ -32,6 +33,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
                     tag: "eileen".to_string(),
                     attrs: vec!["happy".to_string()],
                     position: "center".to_string(),
+                    transition: None,
                 },
                 pos: pos(),
             },
@@ -39,6 +41,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
                 kind: StmtKind::Say {
                     speaker: Some("eileen".to_string()),
                     text: "Hello.".to_string(),
+                    effect: vn_core::TextEffect::Instant,
                 },
                 pos: pos(),
             },
@@ -51,6 +54,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
                             kind: StmtKind::Say {
                                 speaker: Some("eileen".to_string()),
                                 text: "Good.".to_string(),
+                                effect: vn_core::TextEffect::Instant,
                             },
                             pos: pos(),
                         }],
@@ -70,7 +74,8 @@ fn vm_runs_menu_save_restore_and_rollback() {
     assert_eq!(
         vm.continue_until_interaction(),
         Ok(VmEvent::Scene {
-            image: "bg room".to_string()
+            image: "bg room".to_string(),
+            transition: None,
         })
     );
     assert_eq!(
@@ -78,14 +83,16 @@ fn vm_runs_menu_save_restore_and_rollback() {
         Ok(VmEvent::Show {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
-            position: "center".to_string()
+            position: "center".to_string(),
+            transition: None,
         })
     );
     assert_eq!(
         vm.continue_until_interaction(),
         Ok(VmEvent::Dialogue {
             speaker: Some("eileen".to_string()),
-            text: "Hello.".to_string()
+            text: "Hello.".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })
     );
     assert_eq!(
@@ -101,7 +108,8 @@ fn vm_runs_menu_save_restore_and_rollback() {
         restored.choose(0),
         Ok(VmEvent::Dialogue {
             speaker: Some("eileen".to_string()),
-            text: "Good.".to_string()
+            text: "Good.".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })
     );
     assert_eq!(
@@ -131,6 +139,7 @@ fn branch_uses_deterministic_values() {
                         kind: StmtKind::Say {
                             speaker: None,
                             text: "seen".to_string(),
+                            effect: vn_core::TextEffect::Instant,
                         },
                         pos: pos(),
                     }],
@@ -138,6 +147,7 @@ fn branch_uses_deterministic_values() {
                         kind: StmtKind::Say {
                             speaker: None,
                             text: "new".to_string(),
+                            effect: vn_core::TextEffect::Instant,
                         },
                         pos: pos(),
                     }],
@@ -151,7 +161,8 @@ fn branch_uses_deterministic_values() {
         vm.continue_until_interaction(),
         Ok(VmEvent::Dialogue {
             speaker: None,
-            text: "seen".to_string()
+            text: "seen".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })
     );
 }
@@ -190,6 +201,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                                 kind: StmtKind::Say {
                                     speaker: None,
                                     text: "no".to_string(),
+                                    effect: vn_core::TextEffect::Instant,
                                 },
                                 pos: pos(),
                             }],
@@ -206,6 +218,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                                 kind: StmtKind::Say {
                                     speaker: None,
                                     text: "yes".to_string(),
+                                    effect: vn_core::TextEffect::Instant,
                                 },
                                 pos: pos(),
                             }],
@@ -228,7 +241,8 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
         vm.choose(0),
         Ok(VmEvent::Dialogue {
             speaker: None,
-            text: "yes".to_string()
+            text: "yes".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })
     );
 }

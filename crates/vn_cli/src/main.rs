@@ -97,15 +97,16 @@ fn run(project: PathBuf) -> Result<()> {
 
 fn format_event(event: &VmEvent) -> String {
     match event {
-        VmEvent::Dialogue { speaker, text } => match speaker {
+        VmEvent::Dialogue { speaker, text, .. } => match speaker {
             Some(speaker) => format!("say:{speaker}:{text}"),
             None => format!("say:{text}"),
         },
-        VmEvent::Scene { image } => format!("scene:{image}"),
+        VmEvent::Scene { image, .. } => format!("scene:{image}"),
         VmEvent::Show {
             tag,
             attrs,
             position,
+            ..
         } => {
             format!("show:{}:{}:{position}", tag, attrs.join(" "))
         }

@@ -27,17 +27,23 @@ impl Compiler {
                 StmtKind::Label { name } => {
                     self.labels.insert(name.clone(), self.ops.len());
                 }
-                StmtKind::Say { speaker, text } => self.push(
+                StmtKind::Say {
+                    speaker,
+                    text,
+                    effect,
+                } => self.push(
                     OpKind::Say {
                         speaker: speaker.clone(),
                         text: text.clone(),
+                        effect: effect.clone(),
                     },
                     statement,
                 ),
-                StmtKind::Scene { image } => {
+                StmtKind::Scene { image, transition } => {
                     self.push(
                         OpKind::Scene {
                             image: image.clone(),
+                            transition: transition.clone(),
                         },
                         statement,
                     );
@@ -46,11 +52,13 @@ impl Compiler {
                     tag,
                     attrs,
                     position,
+                    transition,
                 } => self.push(
                     OpKind::Show {
                         tag: tag.clone(),
                         attrs: attrs.clone(),
                         position: position.clone(),
+                        transition: transition.clone(),
                     },
                     statement,
                 ),

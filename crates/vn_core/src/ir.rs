@@ -1,4 +1,4 @@
-use crate::ast::{AssignOp, Expr, SourcePos};
+use crate::ast::{AssignOp, Expr, SourcePos, TextEffect, Transition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -25,14 +25,17 @@ pub enum OpKind {
     Say {
         speaker: Option<String>,
         text: String,
+        effect: TextEffect,
     },
     Scene {
         image: String,
+        transition: Option<Transition>,
     },
     Show {
         tag: String,
         attrs: Vec<String>,
         position: String,
+        transition: Option<Transition>,
     },
     Hide {
         tag: String,

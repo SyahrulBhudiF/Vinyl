@@ -95,7 +95,7 @@ impl ValidationContext {
     fn validate_statements(&mut self, statements: &[Stmt]) {
         for statement in statements {
             match &statement.kind {
-                StmtKind::Scene { image } => {
+                StmtKind::Scene { image, .. } => {
                     self.validate_asset(statement.pos.clone(), AssetId::Background(image.clone()))
                 }
                 StmtKind::Show { tag, attrs, .. } => self.validate_asset(

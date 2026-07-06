@@ -1,4 +1,4 @@
-use vn_core::{AssignOp, BinaryOp, Expr, StmtKind, Value};
+use vn_core::{AssignOp, BinaryOp, Expr, StmtKind, TextEffect, Value};
 use vn_script::parse_source;
 
 #[test]
@@ -49,4 +49,41 @@ fn parses_assignment_ops_conditionals_and_menu_conditions() {
     };
     assert_eq!(choices.len(), 1);
     assert!(choices[0].condition.is_some());
+}
+
+#[test]
+fn parses_visual_transitions_and_text_effects() {
+    let script = parse_source(
+        "effects.vn",
+        r#"label start:
+    scene bg room with fade(duration=0.5)
+    show eileen happy at left with dissolve(duration=1.25)
+    eileen "Hello." with typewriter(speed=45)
+"#,
+    )
+    .unwrap();
+
+    let StmtKind::Scene { transition, .. } = &script.statements[1].kind else {
+        panic!("expected scene");
+    };
+    let transition = transition.as_ref().expect("scene transition");
+    assert_eq!(transition.kind, "fade");
+    assert_eq!(transition.duration_ms, 500);
+
+    let StmtKind::Show { transition, .. } = &script.statements[2].kind else {
+        panic!("expected show");
+    };
+    let transition = transition.as_ref().expect("show transition");
+    assert_eq!(transition.kind, "dissolve");
+    assert_eq!(transition.duration_ms, 1250);
+
+    let StmtKind::Say { effect, .. } = &script.statements[3].kind else {
+        panic!("expected say");
+    };
+    assert_eq!(
+        *effect,
+        TextEffect::Typewriter {
+            chars_per_second: 45
+        }
+    );
 }

@@ -1,4 +1,4 @@
-use crate::ast::{AssignOp, BinaryOp, Expr, UnaryOp, Value};
+use crate::ast::{AssignOp, BinaryOp, Expr, TextEffect, Transition, UnaryOp, Value};
 use crate::ir::{MenuChoice, OpId, OpKind, Program};
 use crate::save::{DialogueSnapshot, PresentationSnapshot, SpriteSnapshot};
 use serde::{Deserialize, Serialize};
@@ -27,14 +27,17 @@ pub enum VmEvent {
     Dialogue {
         speaker: Option<String>,
         text: String,
+        effect: TextEffect,
     },
     Scene {
         image: String,
+        transition: Option<Transition>,
     },
     Show {
         tag: String,
         attrs: Vec<String>,
         position: String,
+        transition: Option<Transition>,
     },
     Hide {
         tag: String,
@@ -116,7 +119,11 @@ impl Vm {
                 .kind
                 .clone();
             match kind {
-                OpKind::Say { speaker, text } => {
+                OpKind::Say {
+                    speaker,
+                    text,
+                    effect,
+                } => {
                     self.checkpoint();
                     self.state.pc += 1;
                     self.state.history.push(HistoryEntry {
@@ -131,20 +138,23 @@ impl Vm {
                     return Ok(VmEvent::Dialogue {
                         speaker: speaker.clone(),
                         text: text.clone(),
+                        effect,
                     });
                 }
-                OpKind::Scene { image } => {
+                OpKind::Scene { image, transition } => {
                     self.state.pc += 1;
                     self.presentation.background = Some(image.clone());
                     self.presentation.sprites.clear();
                     return Ok(VmEvent::Scene {
                         image: image.clone(),
+                        transition,
                     });
                 }
                 OpKind::Show {
                     tag,
                     attrs,
                     position,
+                    transition,
                 } => {
                     self.state.pc += 1;
                     self.presentation.sprites.insert(
@@ -158,6 +168,7 @@ impl Vm {
                         tag: tag.clone(),
                         attrs: attrs.clone(),
                         position: position.clone(),
+                        transition,
                     });
                 }
                 OpKind::Hide { tag } => {
@@ -248,6 +259,7 @@ impl Vm {
             return Some(VmEvent::Dialogue {
                 speaker: dialogue.speaker.clone(),
                 text: dialogue.text.clone(),
+                effect: TextEffect::Instant,
             });
         }
         None

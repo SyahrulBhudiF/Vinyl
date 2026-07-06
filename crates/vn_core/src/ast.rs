@@ -30,14 +30,17 @@ pub enum StmtKind {
     Say {
         speaker: Option<String>,
         text: String,
+        effect: TextEffect,
     },
     Scene {
         image: String,
+        transition: Option<Transition>,
     },
     Show {
         tag: String,
         attrs: Vec<String>,
         position: String,
+        transition: Option<Transition>,
     },
     Hide {
         tag: String,
@@ -63,6 +66,23 @@ pub enum StmtKind {
         else_body: Vec<Stmt>,
     },
     End,
+}
+
+/// Visual transition metadata.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Transition {
+    pub kind: String,
+    pub duration_ms: u32,
+}
+
+/// Text reveal effect metadata.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub enum TextEffect {
+    #[default]
+    Instant,
+    Typewriter {
+        chars_per_second: u16,
+    },
 }
 
 /// A menu branch.

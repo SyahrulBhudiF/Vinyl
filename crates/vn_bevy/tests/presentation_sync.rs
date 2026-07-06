@@ -115,6 +115,7 @@ fn choice_story() -> VnStory {
                         body: vec![stmt(StmtKind::Say {
                             speaker: Some("Guide".to_string()),
                             text: "You stayed.".to_string(),
+                            effect: vn_core::TextEffect::Instant,
                         })],
                         pos: pos(),
                     },
@@ -124,15 +125,18 @@ fn choice_story() -> VnStory {
                         body: vec![
                             stmt(StmtKind::Scene {
                                 image: "bg hallway".to_string(),
+                                transition: None,
                             }),
                             stmt(StmtKind::Show {
                                 tag: "eileen".to_string(),
                                 attrs: vec!["concerned".to_string()],
                                 position: "right".to_string(),
+                                transition: None,
                             }),
                             stmt(StmtKind::Say {
                                 speaker: Some("Eileen".to_string()),
                                 text: "We should leave now.".to_string(),
+                                effect: vn_core::TextEffect::Instant,
                             }),
                         ],
                         pos: pos(),
@@ -149,6 +153,7 @@ fn dialogue_story() -> VnStory {
         statements: vec![stmt(StmtKind::Say {
             speaker: Some("Narrator".to_string()),
             text: "Space advances the story.".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })],
     }))
 }
@@ -159,14 +164,17 @@ fn dialogue_then_visuals_then_dialogue_story() -> VnStory {
             stmt(StmtKind::Say {
                 speaker: Some("Narrator".to_string()),
                 text: "The room is quiet.".to_string(),
+                effect: vn_core::TextEffect::Instant,
             }),
             stmt(StmtKind::Scene {
                 image: "bg hallway".to_string(),
+                transition: None,
             }),
             stmt(StmtKind::Show {
                 tag: "eileen".to_string(),
                 attrs: vec!["worried".to_string()],
                 position: "left".to_string(),
+                transition: None,
             }),
             stmt(StmtKind::Hide {
                 tag: "eileen".to_string(),
@@ -178,6 +186,7 @@ fn dialogue_then_visuals_then_dialogue_story() -> VnStory {
             stmt(StmtKind::Say {
                 speaker: Some("Eileen".to_string()),
                 text: "We should move before anyone sees us.".to_string(),
+                effect: vn_core::TextEffect::Instant,
             }),
         ],
     }))
@@ -192,6 +201,7 @@ fn menu_only_story() -> VnStory {
                 body: vec![stmt(StmtKind::Say {
                     speaker: None,
                     text: "Chosen.".to_string(),
+                    effect: vn_core::TextEffect::Instant,
                 })],
                 pos: pos(),
             }],
@@ -204,7 +214,10 @@ fn queued_commands_materialize_presentation_marker_entities() {
 
     push(
         &mut app,
-        PresentationCommand::SetBackground("bg classroom".to_string()),
+        PresentationCommand::SetBackground {
+            image: "bg classroom".to_string(),
+            transition: None,
+        },
     );
     push(
         &mut app,
@@ -212,6 +225,7 @@ fn queued_commands_materialize_presentation_marker_entities() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string(), "uniform".to_string()],
             position: "left".to_string(),
+            transition: None,
         },
     );
     push(
@@ -219,6 +233,7 @@ fn queued_commands_materialize_presentation_marker_entities() {
         PresentationCommand::ShowDialogue {
             speaker: Some("Eileen".to_string()),
             text: "The sync system should expose this line.".to_string(),
+            effect: vn_core::TextEffect::Instant,
         },
     );
     push(
@@ -269,7 +284,10 @@ fn later_updates_replace_removed_presentation_entities() {
 
     push(
         &mut app,
-        PresentationCommand::SetBackground("bg room".to_string()),
+        PresentationCommand::SetBackground {
+            image: "bg room".to_string(),
+            transition: None,
+        },
     );
     push(
         &mut app,
@@ -277,6 +295,7 @@ fn later_updates_replace_removed_presentation_entities() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
             position: "center".to_string(),
+            transition: None,
         },
     );
     push(
@@ -285,6 +304,7 @@ fn later_updates_replace_removed_presentation_entities() {
             tag: "lucy".to_string(),
             attrs: vec!["neutral".to_string()],
             position: "right".to_string(),
+            transition: None,
         },
     );
     push(
@@ -295,7 +315,10 @@ fn later_updates_replace_removed_presentation_entities() {
 
     push(
         &mut app,
-        PresentationCommand::SetBackground("bg hallway".to_string()),
+        PresentationCommand::SetBackground {
+            image: "bg hallway".to_string(),
+            transition: None,
+        },
     );
     push(
         &mut app,
@@ -303,6 +326,7 @@ fn later_updates_replace_removed_presentation_entities() {
             tag: "lucy".to_string(),
             attrs: vec!["surprised".to_string()],
             position: "left".to_string(),
+            transition: None,
         },
     );
     push(&mut app, PresentationCommand::ClearMenu);
@@ -330,7 +354,10 @@ fn renderable_false_keeps_presentation_markers_headless() {
 
     push(
         &mut app,
-        PresentationCommand::SetBackground("classroom".to_string()),
+        PresentationCommand::SetBackground {
+            image: "classroom".to_string(),
+            transition: None,
+        },
     );
     push(
         &mut app,
@@ -338,6 +365,7 @@ fn renderable_false_keeps_presentation_markers_headless() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
             position: "left".to_string(),
+            transition: None,
         },
     );
     app.update();
@@ -397,7 +425,10 @@ fn renderable_true_materializes_render_entities_from_presentation_markers() {
 
     push(
         &mut app,
-        PresentationCommand::SetBackground("classroom".to_string()),
+        PresentationCommand::SetBackground {
+            image: "classroom".to_string(),
+            transition: None,
+        },
     );
     push(
         &mut app,
@@ -405,6 +436,7 @@ fn renderable_true_materializes_render_entities_from_presentation_markers() {
             tag: "eileen".to_string(),
             attrs: vec!["happy".to_string()],
             position: "left".to_string(),
+            transition: None,
         },
     );
     push(
@@ -413,6 +445,7 @@ fn renderable_true_materializes_render_entities_from_presentation_markers() {
             tag: "lucy".to_string(),
             attrs: vec!["neutral".to_string()],
             position: "right".to_string(),
+            transition: None,
         },
     );
     app.update();

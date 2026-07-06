@@ -1,7 +1,8 @@
 use std::path::Path;
 use thiserror::Error;
 use vn_core::{
-    AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, UnaryOp, Value,
+    AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, TextEffect, Transition,
+    UnaryOp, Value,
 };
 
 /// Script parse error.
@@ -106,9 +107,8 @@ impl Parser {
                 name: parse_name(name.trim(), &line, self)?,
             }
         } else if let Some(image) = text.strip_prefix("scene ") {
-            StmtKind::Scene {
-                image: image.trim().to_string(),
-            }
+            let (image, transition) = parse_visual_tail(image.trim(), &line, self)?;
+            StmtKind::Scene { image, transition }
         } else if let Some(rest) = text.strip_prefix("show ") {
             parse_show(rest, &line, self)?
         } else if let Some(tag) = text.strip_prefix("hide ") {
@@ -153,14 +153,18 @@ impl Parser {
                 else_body,
             }
         } else if text.starts_with('"') {
+            let (text, effect) = parse_text_effect(text, &line, self)?;
             StmtKind::Say {
                 speaker: None,
-                text: parse_quoted(text, &line, self)?,
+                text,
+                effect,
             }
         } else if let Some((speaker, quoted)) = split_say(text) {
+            let (text, effect) = parse_text_effect(quoted, &line, self)?;
             StmtKind::Say {
                 speaker: Some(parse_name(speaker, &line, self)?),
-                text: parse_quoted(quoted, &line, self)?,
+                text,
+                effect,
             }
         } else {
             return Err(self.error(&line, "unknown statement"));
@@ -251,6 +255,7 @@ fn strip_comment(raw: &str) -> &str {
 }
 
 fn parse_show(rest: &str, line: &Line, parser: &Parser) -> Result<StmtKind, ParseError> {
+    let (rest, transition) = parse_visual_tail(rest, line, parser)?;
     let parts = rest.split_whitespace().collect::<Vec<_>>();
     if parts.is_empty() {
         return Err(parser.error(line, "show requires image name"));
@@ -274,6 +279,93 @@ fn parse_show(rest: &str, line: &Line, parser: &Parser) -> Result<StmtKind, Pars
             .map(|part| (*part).to_string())
             .collect(),
         position,
+        transition,
+    })
+}
+
+fn parse_visual_tail(
+    text: &str,
+    line: &Line,
+    parser: &Parser,
+) -> Result<(String, Option<Transition>), ParseError> {
+    let Some((head, effect)) = text.rsplit_once(" with ") else {
+        return Ok((text.to_string(), None));
+    };
+    Ok((
+        head.trim().to_string(),
+        Some(parse_transition(effect.trim(), line, parser)?),
+    ))
+}
+
+fn parse_text_effect(
+    text: &str,
+    line: &Line,
+    parser: &Parser,
+) -> Result<(String, TextEffect), ParseError> {
+    let Some((quoted, effect)) = text.rsplit_once(" with ") else {
+        return Ok((parse_quoted(text, line, parser)?, TextEffect::Instant));
+    };
+    Ok((
+        parse_quoted(quoted.trim(), line, parser)?,
+        parse_effect(effect.trim(), line, parser)?,
+    ))
+}
+
+fn parse_transition(text: &str, line: &Line, parser: &Parser) -> Result<Transition, ParseError> {
+    let (kind, args) = parse_call(text);
+    Ok(Transition {
+        kind: kind.to_string(),
+        duration_ms: parse_duration_ms(args, 0, line, parser)?,
+    })
+}
+
+fn parse_effect(text: &str, line: &Line, parser: &Parser) -> Result<TextEffect, ParseError> {
+    let (kind, args) = parse_call(text);
+    match kind {
+        "typewriter" => Ok(TextEffect::Typewriter {
+            chars_per_second: parse_speed(args, 30, line, parser)?,
+        }),
+        "instant" => Ok(TextEffect::Instant),
+        _ => Err(parser.error(line, "unknown text effect")),
+    }
+}
+
+fn parse_call(text: &str) -> (&str, &str) {
+    if let Some((kind, args)) = text.strip_suffix(')').and_then(|text| text.split_once('(')) {
+        (kind.trim(), args.trim())
+    } else {
+        (text.trim(), "")
+    }
+}
+
+fn parse_duration_ms(
+    args: &str,
+    default_ms: u32,
+    line: &Line,
+    parser: &Parser,
+) -> Result<u32, ParseError> {
+    let Some(value) = parse_named_arg(args, "duration") else {
+        return Ok(default_ms);
+    };
+    let seconds = value
+        .parse::<f32>()
+        .map_err(|_| parser.error(line, "duration must be a number"))?;
+    Ok((seconds * 1000.0).round() as u32)
+}
+
+fn parse_speed(args: &str, default: u16, line: &Line, parser: &Parser) -> Result<u16, ParseError> {
+    let Some(value) = parse_named_arg(args, "speed") else {
+        return Ok(default);
+    };
+    value
+        .parse::<u16>()
+        .map_err(|_| parser.error(line, "speed must be an integer"))
+}
+
+fn parse_named_arg<'a>(args: &'a str, name: &str) -> Option<&'a str> {
+    args.split(',').find_map(|arg| {
+        let (key, value) = arg.trim().split_once('=')?;
+        (key.trim() == name).then_some(value.trim())
     })
 }
 
