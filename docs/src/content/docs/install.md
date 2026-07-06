@@ -2,9 +2,9 @@
 title: Install Vinyl
 ---
 
-Vinyl is meant for game developers first. You should not need Rust to make a VN.
+Vinyl is a renderer-independent visual novel engine for Rust.
 
-## MVP install flow
+## Install flow
 
 Download a prebuilt `vn_cli` binary for your OS from Releases, then put it on your PATH.
 
