@@ -29,11 +29,13 @@ impl Compiler {
                 }
                 StmtKind::Say {
                     speaker,
+                    text_id,
                     text,
                     effect,
                 } => self.push(
                     OpKind::Say {
                         speaker: speaker.clone(),
+                        text_id: text_id.clone(),
                         text: text.clone(),
                         effect: effect.clone(),
                     },
@@ -104,6 +106,7 @@ impl Compiler {
         for choice in choices {
             let target = self.ops.len();
             compiled_choices.push(MenuChoice {
+                text_id: choice.text_id.clone(),
                 text: choice.text.clone(),
                 condition: choice.condition.clone(),
                 target,

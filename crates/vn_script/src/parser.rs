@@ -152,17 +152,20 @@ impl Parser {
                 then_body,
                 else_body,
             }
-        } else if text.starts_with('"') {
-            let (text, effect) = parse_text_effect(text, &line, self)?;
+        } else if text.starts_with('"') || text.starts_with('[') {
+            let (text_id, rest) = parse_text_id_prefix(text, &line, self)?;
+            let (text, effect) = parse_text_effect(rest, &line, self)?;
             StmtKind::Say {
                 speaker: None,
+                text_id,
                 text,
                 effect,
             }
-        } else if let Some((speaker, quoted)) = split_say(text) {
+        } else if let Some((speaker, text_id, quoted)) = split_say(text, &line, self)? {
             let (text, effect) = parse_text_effect(quoted, &line, self)?;
             StmtKind::Say {
                 speaker: Some(parse_name(speaker, &line, self)?),
+                text_id,
                 text,
                 effect,
             }
@@ -186,6 +189,7 @@ impl Parser {
                 return Err(self.error(&line, "menu choice must end with ':'"));
             };
             let (choice_text, condition) = parse_choice_header(choice_text, &line, self)?;
+            let (text_id, choice_text) = parse_text_id_prefix(choice_text, &line, self)?;
             let text = parse_quoted(choice_text, &line, self)?;
             self.index += 1;
             let body = self.parse_block(indent + 4)?;
@@ -193,6 +197,7 @@ impl Parser {
                 return Err(self.error(&line, "menu choice body cannot be empty"));
             }
             choices.push(Choice {
+                text_id,
                 text,
                 condition,
                 body,
@@ -560,6 +565,25 @@ fn parse_name(text: &str, line: &Line, parser: &Parser) -> Result<String, ParseE
     Ok(text.to_string())
 }
 
+fn parse_text_id_prefix<'a>(
+    text: &'a str,
+    line: &Line,
+    parser: &Parser,
+) -> Result<(Option<String>, &'a str), ParseError> {
+    let text = text.trim_start();
+    let Some(rest) = text.strip_prefix('[') else {
+        return Ok((None, text));
+    };
+    let Some((id, tail)) = rest.split_once(']') else {
+        return Err(parser.error(line, "unterminated text id"));
+    };
+    let id = id.trim();
+    if id.is_empty() {
+        return Err(parser.error(line, "text id cannot be empty"));
+    }
+    Ok((Some(id.to_string()), tail.trim_start()))
+}
+
 fn parse_quoted(text: &str, line: &Line, parser: &Parser) -> Result<String, ParseError> {
     let bytes = text.as_bytes();
     if bytes.first() != Some(&b'"') {
@@ -592,11 +616,23 @@ fn parse_quoted(text: &str, line: &Line, parser: &Parser) -> Result<String, Pars
     Err(parser.error(line, "unterminated string"))
 }
 
-fn split_say(text: &str) -> Option<(&str, &str)> {
-    let quote = text.find('"')?;
-    let speaker = text[..quote].trim();
+fn split_say<'a>(
+    text: &'a str,
+    line: &Line,
+    parser: &Parser,
+) -> Result<Option<(&'a str, Option<String>, &'a str)>, ParseError> {
+    let text_start = text.find('"');
+    let id_start = text.find('[');
+    let split_at = match (text_start, id_start) {
+        (Some(quote), Some(id)) => quote.min(id),
+        (Some(quote), None) => quote,
+        (None, Some(id)) => id,
+        (None, None) => return Ok(None),
+    };
+    let speaker = text[..split_at].trim();
     if speaker.is_empty() {
-        return None;
+        return Ok(None);
     }
-    Some((speaker, text[quote..].trim()))
+    let (text_id, tail) = parse_text_id_prefix(&text[split_at..], line, parser)?;
+    Ok(Some((speaker, text_id, tail)))
 }

@@ -121,6 +121,7 @@ impl Vm {
             match kind {
                 OpKind::Say {
                     speaker,
+                    text_id: _,
                     text,
                     effect,
                 } => {

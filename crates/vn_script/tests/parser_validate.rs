@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use vn_core::StmtKind;
+use vn_core::{StmtKind, compile};
 use vn_script::{parse_source, validate};
 
 const MVP: &str = r#"label start:
@@ -26,6 +26,45 @@ fn parses_mvp_script() {
     };
     assert_eq!(choices.len(), 2);
     assert_eq!(choices[0].text, "Continue");
+}
+
+#[test]
+fn parses_dialogue_and_menu_text_ids() {
+    let script = parse_source(
+        "locale.vn",
+        r#"label start:
+    eileen [intro.hello] "Hello."
+    [intro.narration] "Narration."
+    menu:
+        [intro.ask] "Ask":
+            end
+"#,
+    )
+    .unwrap();
+
+    let StmtKind::Say { text_id, text, .. } = &script.statements[1].kind else {
+        panic!("expected speaker line");
+    };
+    assert_eq!(text_id.as_deref(), Some("intro.hello"));
+    assert_eq!(text, "Hello.");
+
+    let StmtKind::Say { text_id, text, .. } = &script.statements[2].kind else {
+        panic!("expected narration line");
+    };
+    assert_eq!(text_id.as_deref(), Some("intro.narration"));
+    assert_eq!(text, "Narration.");
+
+    let StmtKind::Menu { choices } = &script.statements[3].kind else {
+        panic!("expected menu");
+    };
+    assert_eq!(choices[0].text_id.as_deref(), Some("intro.ask"));
+    assert_eq!(choices[0].text, "Ask");
+
+    let program = compile(&script);
+    let vn_core::OpKind::Say { text_id, .. } = &program.ops[0].kind else {
+        panic!("expected compiled say");
+    };
+    assert_eq!(text_id.as_deref(), Some("intro.hello"));
 }
 
 #[test]

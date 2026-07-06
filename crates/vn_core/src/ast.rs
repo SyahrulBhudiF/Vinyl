@@ -29,6 +29,7 @@ pub enum StmtKind {
     },
     Say {
         speaker: Option<String>,
+        text_id: Option<String>,
         text: String,
         effect: TextEffect,
     },
@@ -88,6 +89,7 @@ pub enum TextEffect {
 /// A menu branch.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Choice {
+    pub text_id: Option<String>,
     pub text: String,
     pub condition: Option<Expr>,
     pub body: Vec<Stmt>,

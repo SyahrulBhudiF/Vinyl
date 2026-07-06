@@ -211,16 +211,19 @@ fn choice_story() -> VnStory {
             stmt(StmtKind::Menu {
                 choices: vec![
                     Choice {
+                        text_id: None,
                         text: "Stay".to_string(),
                         condition: None,
                         body: vec![stmt(StmtKind::Say {
                             speaker: Some("Guide".to_string()),
+                            text_id: None,
                             text: "You stayed.".to_string(),
                             effect: vn_core::TextEffect::Instant,
                         })],
                         pos: pos(),
                     },
                     Choice {
+                        text_id: None,
                         text: "Leave".to_string(),
                         condition: None,
                         body: vec![
@@ -236,6 +239,7 @@ fn choice_story() -> VnStory {
                             }),
                             stmt(StmtKind::Say {
                                 speaker: Some("Eileen".to_string()),
+                                text_id: None,
                                 text: "We should leave now.".to_string(),
                                 effect: vn_core::TextEffect::Instant,
                             }),
@@ -253,6 +257,7 @@ fn dialogue_story() -> VnStory {
     VnStory::new(compile(&Script {
         statements: vec![stmt(StmtKind::Say {
             speaker: Some("Narrator".to_string()),
+            text_id: None,
             text: "Space advances the story.".to_string(),
             effect: vn_core::TextEffect::Instant,
         })],
@@ -264,6 +269,7 @@ fn dialogue_then_visuals_then_dialogue_story() -> VnStory {
         statements: vec![
             stmt(StmtKind::Say {
                 speaker: Some("Narrator".to_string()),
+                text_id: None,
                 text: "The room is quiet.".to_string(),
                 effect: vn_core::TextEffect::Instant,
             }),
@@ -286,6 +292,7 @@ fn dialogue_then_visuals_then_dialogue_story() -> VnStory {
             stmt(StmtKind::StopMusic),
             stmt(StmtKind::Say {
                 speaker: Some("Eileen".to_string()),
+                text_id: None,
                 text: "We should move before anyone sees us.".to_string(),
                 effect: vn_core::TextEffect::Instant,
             }),
@@ -297,10 +304,12 @@ fn menu_only_story() -> VnStory {
     VnStory::new(compile(&Script {
         statements: vec![stmt(StmtKind::Menu {
             choices: vec![Choice {
+                text_id: None,
                 text: "Continue".to_string(),
                 condition: None,
                 body: vec![stmt(StmtKind::Say {
                     speaker: None,
+                    text_id: None,
                     text: "Chosen.".to_string(),
                     effect: vn_core::TextEffect::Instant,
                 })],

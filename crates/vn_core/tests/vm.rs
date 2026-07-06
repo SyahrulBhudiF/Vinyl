@@ -40,6 +40,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
             Stmt {
                 kind: StmtKind::Say {
                     speaker: Some("eileen".to_string()),
+                    text_id: None,
                     text: "Hello.".to_string(),
                     effect: vn_core::TextEffect::Instant,
                 },
@@ -48,11 +49,13 @@ fn vm_runs_menu_save_restore_and_rollback() {
             Stmt {
                 kind: StmtKind::Menu {
                     choices: vec![Choice {
+                        text_id: None,
                         text: "Continue".to_string(),
                         condition: None,
                         body: vec![Stmt {
                             kind: StmtKind::Say {
                                 speaker: Some("eileen".to_string()),
+                                text_id: None,
                                 text: "Good.".to_string(),
                                 effect: vn_core::TextEffect::Instant,
                             },
@@ -138,6 +141,7 @@ fn branch_uses_deterministic_values() {
                     then_body: vec![Stmt {
                         kind: StmtKind::Say {
                             speaker: None,
+                            text_id: None,
                             text: "seen".to_string(),
                             effect: vn_core::TextEffect::Instant,
                         },
@@ -146,6 +150,7 @@ fn branch_uses_deterministic_values() {
                     else_body: vec![Stmt {
                         kind: StmtKind::Say {
                             speaker: None,
+                            text_id: None,
                             text: "new".to_string(),
                             effect: vn_core::TextEffect::Instant,
                         },
@@ -191,6 +196,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                 kind: StmtKind::Menu {
                     choices: vec![
                         Choice {
+                            text_id: None,
                             text: "Locked".to_string(),
                             condition: Some(Expr::Binary {
                                 left: Box::new(Expr::Var("affection".to_string())),
@@ -200,6 +206,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                             body: vec![Stmt {
                                 kind: StmtKind::Say {
                                     speaker: None,
+                                    text_id: None,
                                     text: "no".to_string(),
                                     effect: vn_core::TextEffect::Instant,
                                 },
@@ -208,6 +215,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                             pos: pos(),
                         },
                         Choice {
+                            text_id: None,
                             text: "Unlocked".to_string(),
                             condition: Some(Expr::Binary {
                                 left: Box::new(Expr::Var("affection".to_string())),
@@ -217,6 +225,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
                             body: vec![Stmt {
                                 kind: StmtKind::Say {
                                     speaker: None,
+                                    text_id: None,
                                     text: "yes".to_string(),
                                     effect: vn_core::TextEffect::Instant,
                                 },

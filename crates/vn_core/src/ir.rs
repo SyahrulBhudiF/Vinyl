@@ -24,6 +24,7 @@ pub struct Op {
 pub enum OpKind {
     Say {
         speaker: Option<String>,
+        text_id: Option<String>,
         text: String,
         effect: TextEffect,
     },
@@ -66,6 +67,7 @@ pub enum OpKind {
 /// Compiled menu choice.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MenuChoice {
+    pub text_id: Option<String>,
     pub text: String,
     pub condition: Option<Expr>,
     pub target: OpId,
