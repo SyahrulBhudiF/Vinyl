@@ -8,7 +8,7 @@
     "vscode": "^1.90.0"
   },
   "scripts": {
-    "package": "vsce package"
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@vscode/vsce": "latest"

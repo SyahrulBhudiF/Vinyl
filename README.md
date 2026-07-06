@@ -110,8 +110,9 @@ Install it locally in VS Code:
 
 ```bash
 cd editors/vscode-vinyl
-vpx @vscode/vsce package
-code --install-extension vinyl-vn-syntax-0.1.0.vsix
+pnpm install
+pnpm package
+code --install-extension vinyl-vn-syntax-0.1.0.vsix --force
 ```
 
 For development, open `editors/vscode-vinyl/` in VS Code and press `F5`.
