@@ -8,6 +8,11 @@ Renderer-independent VN engine in Rust. Workspace with 5 crates: `vn_core` (VM/I
 # Build entire workspace
 cargo build
 
+# Full quality gate
+cargo fmt --check
+cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+cargo test --workspace --no-fail-fast --no-default-features
+
 # Run all tests
 cargo test
 
@@ -41,7 +46,7 @@ cargo fmt --check
 - `vn_script`: Parser, validator, project loader (depends on vn_core)
 - `vn_runtime`: Presentation orchestration (depends on vn_core)
 - `vn_bevy`: Bevy integration (depends on vn_core, vn_runtime)
-- `vn_cli`: CLI binary (depends on all)
+- `vn_cli`: prebuilt writer CLI; game developers should use release binaries, not build Rust
 
 ## Script Language
 

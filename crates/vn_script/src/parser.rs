@@ -679,11 +679,13 @@ fn parse_quoted(text: &str, line: &Line, parser: &Parser) -> Result<String, Pars
     Err(parser.error(line, "unterminated string"))
 }
 
+type SayParts<'a> = (&'a str, Option<String>, &'a str);
+
 fn split_say<'a>(
     text: &'a str,
     line: &Line,
     parser: &Parser,
-) -> Result<Option<(&'a str, Option<String>, &'a str)>, ParseError> {
+) -> Result<Option<SayParts<'a>>, ParseError> {
     let text_start = text.find('"');
     let id_start = text.find('[');
     let split_at = match (text_start, id_start) {
