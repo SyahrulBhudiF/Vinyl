@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use vn_core::{Preferences, ProjectId, SaveFile, Vm, VmEvent, compile};
+use vn_core::{Preferences, ProjectId, SaveFile, Stmt, StmtKind, Vm, VmEvent, compile};
 use vn_runtime::{apply_command, commands_from_event};
 use vn_script::{
     LocaleCatalog, ProjectError, extract_messages, load_project, render_messages,
@@ -18,12 +18,22 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Create a new writer-ready VN project.
+    New { project: PathBuf },
     /// Parse and validate a project.
     Check {
         project: PathBuf,
         #[arg(long)]
         locale: Option<String>,
     },
+    /// Parse project; placeholder for future source rewriting.
+    Fmt { project: PathBuf },
+    /// Print parsed AST as JSON.
+    DumpAst { project: PathBuf },
+    /// Print compiled IR as JSON.
+    DumpIr { project: PathBuf },
+    /// Print resolved asset paths referenced by scripts.
+    ListAssets { project: PathBuf },
     /// Print Fluent entries extracted from script text ids.
     ExtractLocales { project: PathBuf },
     /// Run deterministic CLI smoke execution.
@@ -37,10 +47,43 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Command::New { project } => new_project(project),
         Command::Check { project, locale } => check(project, locale),
+        Command::Fmt { project } => fmt_project(project),
+        Command::DumpAst { project } => dump_ast(project),
+        Command::DumpIr { project } => dump_ir(project),
+        Command::ListAssets { project } => list_assets(project),
         Command::ExtractLocales { project } => extract_locales(project),
         Command::Run { project, locale } => run(project, locale),
     }
+}
+
+fn new_project(project: PathBuf) -> Result<()> {
+    std::fs::create_dir_all(project.join("script"))?;
+    std::fs::create_dir_all(project.join("assets/bg"))?;
+    std::fs::create_dir_all(project.join("assets/sprites/eileen"))?;
+    std::fs::create_dir_all(project.join("assets/audio"))?;
+    std::fs::create_dir_all(project.join("locale"))?;
+    let id = project
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("vinyl-game");
+    std::fs::write(
+        project.join("vinyl.toml"),
+        format!(
+            "[project]\nid = \"{id}\"\ntitle = \"{id}\"\nversion = \"0.1.0\"\ndefault_locale = \"en-US\"\n\n[paths]\nscript = \"script\"\nassets = \"assets\"\nlocales = \"locale\"\n\n[assets]\nbackgrounds = \"bg\"\nsprites = \"sprites\"\naudio = \"audio\"\n"
+        ),
+    )?;
+    std::fs::write(
+        project.join("script/start.vn"),
+        "label start:\n    eileen [intro-hello] \"Hello.\"\n    menu:\n        [intro-continue] \"Continue\":\n            end\n",
+    )?;
+    std::fs::write(
+        project.join("locale/en-US.ftl"),
+        "intro-hello = Hello.\nintro-continue = Continue\n",
+    )?;
+    println!("created {}", project.display());
+    Ok(())
 }
 
 fn check(project: PathBuf, locale: Option<String>) -> Result<()> {
@@ -57,6 +100,36 @@ fn check(project: PathBuf, locale: Option<String>) -> Result<()> {
         bail!("validation failed");
     }
     println!("ok");
+    Ok(())
+}
+
+fn fmt_project(project: PathBuf) -> Result<()> {
+    let _ = load_project_or_print(&project)?;
+    println!("ok");
+    Ok(())
+}
+
+fn dump_ast(project: PathBuf) -> Result<()> {
+    let loaded = load_project_or_print(&project)?;
+    println!("{}", serde_json::to_string_pretty(&loaded.script)?);
+    Ok(())
+}
+
+fn dump_ir(project: PathBuf) -> Result<()> {
+    let loaded = load_project_or_print(&project)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&compile(&loaded.script))?
+    );
+    Ok(())
+}
+
+fn list_assets(project: PathBuf) -> Result<()> {
+    let loaded = load_project_or_print(&project)?;
+    let resolver = vn_script::AssetResolver::new(&loaded.root, loaded.manifest.clone());
+    for asset in referenced_assets(&loaded.script.statements) {
+        println!("{}", resolver.resolve(&asset).display());
+    }
     Ok(())
 }
 
@@ -128,6 +201,37 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         println!("{event}");
     }
     Ok(())
+}
+
+fn referenced_assets(statements: &[Stmt]) -> Vec<vn_script::AssetId> {
+    let mut assets = Vec::new();
+    for statement in statements {
+        match &statement.kind {
+            StmtKind::Scene { image, .. } => {
+                assets.push(vn_script::AssetId::Background(image.clone()))
+            }
+            StmtKind::Show { tag, attrs, .. } => assets.push(vn_script::AssetId::Sprite {
+                tag: tag.clone(),
+                attrs: attrs.clone(),
+            }),
+            StmtKind::PlayMusic { path } => assets.push(vn_script::AssetId::Audio(path.clone())),
+            StmtKind::Menu { choices } => {
+                for choice in choices {
+                    assets.extend(referenced_assets(&choice.body));
+                }
+            }
+            StmtKind::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                assets.extend(referenced_assets(then_body));
+                assets.extend(referenced_assets(else_body));
+            }
+            _ => {}
+        }
+    }
+    assets
 }
 
 fn load_project_or_print(project: &std::path::Path) -> Result<vn_script::LoadedProject> {

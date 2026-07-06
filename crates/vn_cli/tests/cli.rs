@@ -36,6 +36,85 @@ fn run_fixture_project_through_menu_save_and_rollback() {
 }
 
 #[test]
+fn new_creates_writer_ready_project() {
+    let root = temp_project("new_project");
+    let _ = fs::remove_dir_all(&root);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .arg("new")
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(root.join("vinyl.toml").exists());
+    assert!(root.join("script/start.vn").exists());
+    assert!(root.join("locale/en-US.ftl").exists());
+
+    let check = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .arg("check")
+        .arg(&root)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn writer_tools_dump_and_list_project_data() {
+    let ast = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .args(["dump-ast", "../../fixtures/mvp"])
+        .output()
+        .unwrap();
+    assert!(
+        ast.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ast.stderr)
+    );
+    assert!(String::from_utf8_lossy(&ast.stdout).contains("statements"));
+
+    let ir = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .args(["dump-ir", "../../fixtures/mvp"])
+        .output()
+        .unwrap();
+    assert!(
+        ir.status.success(),
+        "{}",
+        String::from_utf8_lossy(&ir.stderr)
+    );
+    assert!(String::from_utf8_lossy(&ir.stdout).contains("ops"));
+
+    let assets = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .args(["list-assets", "../../fixtures/mvp"])
+        .output()
+        .unwrap();
+    assert!(
+        assets.status.success(),
+        "{}",
+        String::from_utf8_lossy(&assets.stderr)
+    );
+    assert!(String::from_utf8_lossy(&assets.stdout).contains("assets/bg/room.png"));
+
+    let fmt = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+        .args(["fmt", "../../fixtures/mvp"])
+        .output()
+        .unwrap();
+    assert!(
+        fmt.status.success(),
+        "{}",
+        String::from_utf8_lossy(&fmt.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&fmt.stdout), "ok\n");
+}
+
+#[test]
 fn extract_locales_prints_fluent_entries() {
     let root = temp_project("extract");
     fs::create_dir_all(root.join("script")).unwrap();

@@ -5,7 +5,6 @@ Cargo.lock
 
 # IDE
 .idea/
-/docs
 .vscode/
 *.swp
 *.swo
@@ -17,6 +16,8 @@ Cargo.lock
 !AGENTS.md
 !**/README.md
 !**/AGENTS.md
+!docs/src/**/*.md
+!docs/src/**/*.mdx
 
 # OS
 .DS_Store
