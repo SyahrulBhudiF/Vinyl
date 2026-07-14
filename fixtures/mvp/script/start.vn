@@ -1,7 +1,8 @@
 label start:
     scene bg room
     show eileen happy at center
-    eileen "Hello."
+    play music "theme.mp3"
+    eileen "Hello." with typewriter(speed=30)
     menu:
         "Continue":
             eileen "Good."

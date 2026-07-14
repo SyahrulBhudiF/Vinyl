@@ -47,6 +47,7 @@ pub fn validate_with_locales(
 ) -> Result<(), ValidationError> {
     let mut context = ValidationContext::new(project_root, manifest.clone(), locales);
     context.collect_labels(&script.statements);
+    context.require_start_label(script);
     context.validate_statements(&script.statements);
     if context.diagnostics.is_empty() {
         Ok(())
@@ -104,6 +105,22 @@ impl ValidationContext {
     fn collect_choice_labels(&mut self, choices: &[Choice]) {
         for choice in choices {
             self.collect_labels(&choice.body);
+        }
+    }
+
+    fn require_start_label(&mut self, script: &Script) {
+        if !self.labels.contains("start") {
+            let pos = script
+                .statements
+                .first()
+                .map(|statement| statement.pos.clone())
+                .unwrap_or_else(|| SourcePos {
+                    file: "<project>".to_string(),
+                    line: 1,
+                    column: 1,
+                });
+            self.diagnostics
+                .push(Diagnostic::new(pos, "missing required label 'start'"));
         }
     }
 

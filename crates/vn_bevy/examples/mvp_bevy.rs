@@ -13,7 +13,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(VnBevyPlugin)
-        .insert_resource(VnStory::new(program))
+        .insert_resource(VnStory::new(program).expect("start label exists"))
         .insert_resource(VnAssetResolver::new(project))
         .insert_resource(VnRenderable(true))
         .run();

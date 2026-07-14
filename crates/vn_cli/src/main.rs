@@ -22,25 +22,52 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Create a new writer-ready VN project.
-    New { project: PathBuf },
+    New {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
     /// Parse and validate a project.
     Check {
+        #[arg(default_value = ".")]
         project: PathBuf,
         #[arg(long)]
         locale: Option<String>,
     },
     /// Parse project; placeholder for future source rewriting.
-    Fmt { project: PathBuf },
+    Fmt {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
     /// Print parsed AST as JSON.
-    DumpAst { project: PathBuf },
+    DumpAst {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
     /// Print compiled IR as JSON.
-    DumpIr { project: PathBuf },
+    DumpIr {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
     /// Print resolved asset paths referenced by scripts.
-    ListAssets { project: PathBuf },
+    ListAssets {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
     /// Print Fluent entries extracted from script text ids.
-    ExtractLocales { project: PathBuf },
-    /// Run deterministic CLI smoke execution.
+    ExtractLocales {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+    },
+    /// Validate and start the rendered desktop player.
     Run {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        #[arg(long)]
+        locale: Option<String>,
+    },
+    /// Run deterministic headless VM verification.
+    Smoke {
+        #[arg(default_value = ".")]
         project: PathBuf,
         #[arg(long)]
         locale: Option<String>,
@@ -58,6 +85,7 @@ fn main() -> Result<()> {
         Command::ListAssets { project } => list_assets(project),
         Command::ExtractLocales { project } => extract_locales(project),
         Command::Run { project, locale } => run(project, locale),
+        Command::Smoke { project, locale } => smoke(project, locale),
     }
 }
 
@@ -142,23 +170,34 @@ fn extract_locales(project: PathBuf) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "desktop")]
 fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
-    let loaded = load_project_or_print(&project)?;
-    if let Err(error) = validate_with_locales(
-        &loaded.script,
-        &loaded.root,
-        &loaded.manifest,
-        &selected_locales(&loaded.locales, locale.as_deref())?,
-    ) {
-        for diagnostic in error.diagnostics() {
-            eprintln!("{}", diagnostic.render());
-        }
-        bail!("validation failed");
-    }
+    let loaded = load_validated_project(&project, locale.as_deref())?;
+    let active_locale = locale.unwrap_or_else(|| loaded.manifest.project.default_locale.clone());
+    vn_bevy::run_player(vn_bevy::PlayerConfig {
+        project_root: loaded.root,
+        manifest: loaded.manifest.clone(),
+        program: compile(&loaded.script),
+        translations: translations_for(&loaded.locales, &active_locale),
+        project_id: ProjectId::from(loaded.manifest.project.id),
+        script_hash: loaded.script_hash,
+        engine_version: env!("CARGO_PKG_VERSION").to_string(),
+    })?;
+    Ok(())
+}
+
+#[cfg(not(feature = "desktop"))]
+fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
+    let _ = load_validated_project(&project, locale.as_deref())?;
+    bail!("desktop player support is disabled in this build")
+}
+
+fn smoke(project: PathBuf, locale: Option<String>) -> Result<()> {
+    let loaded = load_validated_project(&project, locale.as_deref())?;
     let active_locale = locale.unwrap_or_else(|| loaded.manifest.project.default_locale.clone());
     let program = compile(&loaded.script);
     let translations = translations_for(&loaded.locales, &active_locale);
-    let mut vm = Vm::with_translations(program.clone(), translations);
+    let mut vm = Vm::with_translations(program.clone(), translations)?;
     let mut events = Vec::new();
     let mut presentation = Default::default();
     loop {
@@ -212,6 +251,25 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         println!("{event}");
     }
     Ok(())
+}
+
+fn load_validated_project(
+    project: &std::path::Path,
+    locale: Option<&str>,
+) -> Result<vn_script::LoadedProject> {
+    let loaded = load_project_or_print(project)?;
+    if let Err(error) = validate_with_locales(
+        &loaded.script,
+        &loaded.root,
+        &loaded.manifest,
+        &selected_locales(&loaded.locales, locale)?,
+    ) {
+        for diagnostic in error.diagnostics() {
+            eprintln!("{}", diagnostic.render());
+        }
+        bail!("validation failed");
+    }
+    Ok(loaded)
 }
 
 fn referenced_assets(statements: &[Stmt]) -> Vec<vn_script::AssetId> {

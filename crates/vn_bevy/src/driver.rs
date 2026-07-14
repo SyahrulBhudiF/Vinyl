@@ -11,12 +11,24 @@ pub struct VnStory {
 
 impl VnStory {
     /// Creates a story driver from a compiled program.
-    pub fn new(program: Program) -> Self {
-        Self {
-            vm: Vm::new(program),
+    pub fn new(program: Program) -> Result<Self, VmError> {
+        Ok(Self {
+            vm: Vm::new(program)?,
             last_event: None,
             last_error: None,
-        }
+        })
+    }
+
+    /// Creates a localized story driver.
+    pub fn with_translations(
+        program: Program,
+        translations: std::collections::HashMap<String, String>,
+    ) -> Result<Self, VmError> {
+        Ok(Self {
+            vm: Vm::with_translations(program, translations)?,
+            last_event: None,
+            last_error: None,
+        })
     }
 
     /// Returns the latest successful VM event.

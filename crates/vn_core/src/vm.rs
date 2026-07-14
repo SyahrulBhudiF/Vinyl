@@ -55,6 +55,8 @@ pub enum VmEvent {
 /// VM execution error.
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum VmError {
+    #[error("program has no start label")]
+    MissingStartLabel,
     #[error("program counter {pc} is outside program")]
     InvalidProgramCounter { pc: OpId },
     #[error("choice {choice} is outside active menu")]
@@ -76,21 +78,32 @@ pub struct Vm {
 
 impl Vm {
     /// Creates a VM at program start.
-    pub fn new(program: Program) -> Self {
-        Self {
+    pub fn new(program: Program) -> Result<Self, VmError> {
+        let pc = program
+            .labels
+            .get("start")
+            .copied()
+            .ok_or(VmError::MissingStartLabel)?;
+        Ok(Self {
             program,
-            state: VmState::default(),
+            state: VmState {
+                pc,
+                ..Default::default()
+            },
             rollback: Vec::new(),
             presentation: PresentationSnapshot::default(),
             translations: HashMap::new(),
-        }
+        })
     }
 
     /// Creates a VM with localized text overrides keyed by script text id.
-    pub fn with_translations(program: Program, translations: HashMap<String, String>) -> Self {
-        let mut vm = Self::new(program);
+    pub fn with_translations(
+        program: Program,
+        translations: HashMap<String, String>,
+    ) -> Result<Self, VmError> {
+        let mut vm = Self::new(program)?;
         vm.translations = translations;
-        vm
+        Ok(vm)
     }
 
     /// Replaces localized text overrides.

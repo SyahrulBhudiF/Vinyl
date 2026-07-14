@@ -4,6 +4,7 @@ use crate::components::{
 use crate::resources::{VnAssetResolver, VnRenderable};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy::sprite::{ScalingMode, SpriteImageMode};
 use std::collections::HashSet;
 
 /// Render marker for the active background sprite entity.
@@ -79,9 +80,14 @@ fn sync_background(
                     BackgroundRender {
                         image: image.clone(),
                     },
-                    Sprite::from_image(load_image(asset_server, resolver, |resolver| {
-                        resolver.0.background(&image)
-                    })),
+                    Sprite {
+                        image: load_image(asset_server, resolver, |resolver| {
+                            resolver.0.background(&image)
+                        }),
+                        custom_size: Some(Vec2::new(1280.0, 720.0)),
+                        image_mode: SpriteImageMode::Scale(ScalingMode::FillCenter),
+                        ..default()
+                    },
                     Transform::from_xyz(0.0, 0.0, -10.0),
                 ));
                 if let Some(alpha) = alpha {
@@ -185,6 +191,25 @@ fn sync_sprites(
     }
 }
 
+pub(crate) fn fit_loaded_sprites(
+    images: Option<Res<Assets<Image>>>,
+    mut sprites: Query<(&mut Sprite, &mut Transform), With<SpriteRender>>,
+) {
+    let Some(images) = images else {
+        return;
+    };
+    for (mut sprite, mut transform) in &mut sprites {
+        let Some(image) = images.get(&sprite.image) else {
+            continue;
+        };
+        let size = image.size_f32();
+        let scale = (648.0 / size.y).min(1.0);
+        let displayed = size * scale;
+        sprite.custom_size = (scale < 1.0).then_some(displayed);
+        transform.translation.y = -360.0 + displayed.y / 2.0;
+    }
+}
+
 fn load_image(
     asset_server: &Option<Res<AssetServer>>,
     resolver: &Option<Res<VnAssetResolver>>,
@@ -192,7 +217,7 @@ fn load_image(
 ) -> Handle<Image> {
     match (asset_server, resolver) {
         (Some(asset_server), Some(resolver)) => {
-            asset_server.load(path(resolver).to_string_lossy().to_string())
+            asset_server.load(resolver.asset_path(path(resolver)))
         }
         _ => Handle::<Image>::default(),
     }
@@ -206,7 +231,7 @@ fn audio_bundle(
 ) -> (AudioPlayer<AudioSource>, PlaybackSettings) {
     let handle = match (asset_server, resolver) {
         (Some(asset_server), Some(resolver)) => {
-            asset_server.load(path(resolver).to_string_lossy().to_string())
+            asset_server.load(resolver.asset_path(path(resolver)))
         }
         _ => Handle::<AudioSource>::default(),
     };

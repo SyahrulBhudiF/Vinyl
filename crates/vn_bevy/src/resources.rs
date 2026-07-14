@@ -1,5 +1,7 @@
+use bevy::asset::UntypedHandle;
 use bevy::prelude::*;
 use std::collections::VecDeque;
+use std::time::Instant;
 use vn_runtime::{AssetResolver, PresentationCommand};
 use vn_script::ProjectManifest;
 
@@ -42,6 +44,22 @@ impl PresentationCommandQueue {
     }
 }
 
+/// Current asynchronous asset-loading state.
+#[derive(Clone, Debug, Default, Resource)]
+pub struct AssetLoadingState {
+    pub started_at: Option<Instant>,
+    pub error: Option<String>,
+    pub(crate) pending_path: Option<String>,
+    pub(crate) pending_handle: Option<UntypedHandle>,
+}
+
+impl AssetLoadingState {
+    pub fn visible(&self) -> bool {
+        self.started_at
+            .is_some_and(|started| started.elapsed().as_millis() >= 150)
+    }
+}
+
 /// Project-rooted resolver used by Bevy asset-loading systems.
 #[derive(Clone, Debug, Eq, PartialEq, Resource)]
 pub struct VnAssetResolver(pub AssetResolver);
@@ -55,6 +73,32 @@ impl VnAssetResolver {
     /// Creates a resolver using manifest-configured asset roots.
     pub fn with_manifest(root: impl Into<std::path::PathBuf>, manifest: ProjectManifest) -> Self {
         Self(AssetResolver::with_manifest(root, manifest))
+    }
+
+    pub(crate) fn asset_path(&self, path: std::path::PathBuf) -> String {
+        path.strip_prefix(self.0.root())
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::VnAssetResolver;
+
+    #[test]
+    fn produces_project_relative_bevy_asset_paths() {
+        let resolver = VnAssetResolver::new("game");
+
+        assert_eq!(
+            resolver.asset_path(resolver.0.background("bg school hallway")),
+            "assets/bg/school/hallway.png"
+        );
+        assert_eq!(
+            resolver.asset_path(resolver.0.sprite("eileen", &["happy".to_string()])),
+            "assets/sprites/eileen/happy.png"
+        );
     }
 }
 

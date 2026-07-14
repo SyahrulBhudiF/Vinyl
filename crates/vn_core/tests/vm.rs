@@ -75,7 +75,7 @@ fn vm_runs_menu_save_restore_and_rollback() {
         ],
     };
     let program = compile(&script);
-    let mut vm = Vm::new(program.clone());
+    let mut vm = Vm::new(program.clone()).unwrap();
     assert_eq!(
         vm.continue_until_interaction(),
         Ok(VmEvent::Scene {
@@ -126,9 +126,67 @@ fn vm_runs_menu_save_restore_and_rollback() {
 }
 
 #[test]
+fn vm_starts_at_start_label_and_restore_keeps_saved_pc() {
+    let script = Script {
+        statements: vec![
+            Stmt {
+                kind: StmtKind::Say {
+                    speaker: None,
+                    text_id: None,
+                    text: "before".to_string(),
+                    effect: vn_core::TextEffect::Instant,
+                },
+                pos: pos(),
+            },
+            Stmt {
+                kind: StmtKind::Label {
+                    name: "start".to_string(),
+                },
+                pos: pos(),
+            },
+            Stmt {
+                kind: StmtKind::Say {
+                    speaker: None,
+                    text_id: None,
+                    text: "start".to_string(),
+                    effect: vn_core::TextEffect::Instant,
+                },
+                pos: pos(),
+            },
+            Stmt {
+                kind: StmtKind::Say {
+                    speaker: None,
+                    text_id: None,
+                    text: "saved".to_string(),
+                    effect: vn_core::TextEffect::Instant,
+                },
+                pos: pos(),
+            },
+        ],
+    };
+    let program = compile(&script);
+    let mut vm = Vm::new(program.clone()).unwrap();
+    assert!(matches!(
+        vm.continue_until_interaction(),
+        Ok(VmEvent::Dialogue { ref text, .. }) if text == "start"
+    ));
+    let mut restored = Vm::from_parts(program, vm.state().clone(), vm.presentation().clone());
+    assert!(matches!(
+        restored.continue_until_interaction(),
+        Ok(VmEvent::Dialogue { ref text, .. }) if text == "saved"
+    ));
+}
+
+#[test]
 fn branch_uses_deterministic_values() {
     let script = Script {
         statements: vec![
+            Stmt {
+                kind: StmtKind::Label {
+                    name: "start".to_string(),
+                },
+                pos: pos(),
+            },
             Stmt {
                 kind: StmtKind::Set {
                     var: "seen".to_string(),
@@ -163,7 +221,7 @@ fn branch_uses_deterministic_values() {
             },
         ],
     };
-    let mut vm = Vm::new(compile(&script));
+    let mut vm = Vm::new(compile(&script)).unwrap();
     assert_eq!(
         vm.continue_until_interaction(),
         Ok(VmEvent::Dialogue {
@@ -178,6 +236,12 @@ fn branch_uses_deterministic_values() {
 fn vm_resolves_text_ids_with_fallback_text() {
     let script = Script {
         statements: vec![
+            Stmt {
+                kind: StmtKind::Label {
+                    name: "start".to_string(),
+                },
+                pos: pos(),
+            },
             Stmt {
                 kind: StmtKind::Say {
                     speaker: Some("eileen".to_string()),
@@ -212,7 +276,7 @@ fn vm_resolves_text_ids_with_fallback_text() {
     let mut translations = HashMap::new();
     translations.insert("intro-hello".to_string(), "Halo.".to_string());
     translations.insert("intro-ask".to_string(), "Tanya".to_string());
-    let mut vm = Vm::with_translations(compile(&script), translations);
+    let mut vm = Vm::with_translations(compile(&script), translations).unwrap();
 
     assert_eq!(
         vm.continue_until_interaction(),
@@ -242,6 +306,12 @@ fn vm_resolves_text_ids_with_fallback_text() {
 fn arithmetic_assignment_and_conditional_menu_choices_work() {
     let script = Script {
         statements: vec![
+            Stmt {
+                kind: StmtKind::Label {
+                    name: "start".to_string(),
+                },
+                pos: pos(),
+            },
             Stmt {
                 kind: StmtKind::Set {
                     var: "affection".to_string(),
@@ -305,7 +375,7 @@ fn arithmetic_assignment_and_conditional_menu_choices_work() {
             },
         ],
     };
-    let mut vm = Vm::new(compile(&script));
+    let mut vm = Vm::new(compile(&script)).unwrap();
     assert_eq!(
         vm.continue_until_interaction(),
         Ok(VmEvent::Menu {

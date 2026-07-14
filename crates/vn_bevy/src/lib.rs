@@ -7,6 +7,8 @@ pub mod camera;
 pub mod components;
 pub mod driver;
 pub mod input;
+#[cfg(feature = "desktop")]
+pub mod player;
 pub mod plugin;
 pub mod render;
 pub mod resources;
@@ -18,7 +20,13 @@ pub use components::{
     PresentationSprite, TextReveal, TransitionAlpha,
 };
 pub use driver::VnStory;
-pub use input::{PendingChoice, apply_pending_choice, keyboard_advance_story};
+pub use input::{MenuFocus, PendingChoice, apply_pending_choice, keyboard_advance_story};
+#[cfg(feature = "desktop")]
+pub use player::{PlayerConfig, PlayerFlags, PlayerMode, run_player};
 pub use plugin::VnBevyPlugin;
 pub use render::{BackgroundRender, MusicRender, SpriteRender};
-pub use resources::{PresentationCommandQueue, VnAssetResolver, VnPresentation, VnRenderable};
+pub use resources::{
+    AssetLoadingState, PresentationCommandQueue, VnAssetResolver, VnPresentation, VnRenderable,
+};
+#[cfg(feature = "audio")]
+pub use systems::validate_audio;

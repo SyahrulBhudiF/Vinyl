@@ -11,14 +11,16 @@ bevy = { version = "0.17.3", default-features = false, features = [
     "bevy_sprite",
     "bevy_sprite_render",
     "bevy_text",
-    "std",
     "png",
+    "std",
 ] }
 vn_core = { path = "../vn_core" }
 vn_runtime = { path = "../vn_runtime" }
 vn_script = { path = "../vn_script" }
 wasm-bindgen-futures = "0.4.70"
+rodio = { version = "0.20", default-features = false, features = ["mp3"], optional = true }
 
 [features]
 default = []
-audio = ["bevy/bevy_audio"]
+desktop = ["bevy/bevy_ui_render", "bevy/bevy_winit", "bevy/x11"]
+audio = ["desktop", "bevy/bevy_audio", "bevy/mp3", "dep:rodio"]

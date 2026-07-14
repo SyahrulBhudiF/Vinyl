@@ -23,10 +23,16 @@ dist/
 *.md
 !README.md
 !AGENTS.md
+!CONTEXT.md
+!PLAN.md
+!docs/adr/*.md
 !**/README.md
 !**/AGENTS.md
 !docs/src/**/*.md
 !docs/src/**/*.mdx
+
+# Agent artifacts
+.pi-subagents/
 
 # OS
 .DS_Store

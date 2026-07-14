@@ -1,4 +1,5 @@
 use std::fs;
+use vn_core::{Vm, VmEvent, compile};
 use vn_script::load_project;
 
 #[test]
@@ -21,6 +22,23 @@ fn missing_manifest_uses_root_name_defaults() {
         dir.file_name().unwrap().to_string_lossy()
     );
     assert_eq!(loaded.manifest.paths.script.to_string_lossy(), "script");
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn multi_file_project_starts_at_start_label_not_first_file() {
+    let dir = temp_project("start_order");
+    fs::create_dir_all(dir.join("script")).unwrap();
+    fs::write(dir.join("script/a.vn"), "\"wrong\"\n").unwrap();
+    fs::write(dir.join("script/z.vn"), "label start:\n    \"right\"\n").unwrap();
+
+    let loaded = load_project(&dir).unwrap();
+    let mut vm = Vm::new(compile(&loaded.script)).unwrap();
+    assert!(matches!(
+        vm.continue_until_interaction(),
+        Ok(VmEvent::Dialogue { ref text, .. }) if text == "right"
+    ));
 
     let _ = fs::remove_dir_all(dir);
 }

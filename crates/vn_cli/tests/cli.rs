@@ -3,7 +3,7 @@ use std::process::Command;
 
 #[test]
 fn check_fixture_project() {
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["check", "../../fixtures/mvp"])
         .output()
         .unwrap();
@@ -16,9 +16,9 @@ fn check_fixture_project() {
 }
 
 #[test]
-fn run_fixture_project_through_menu_save_and_rollback() {
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
-        .args(["run", "../../fixtures/mvp"])
+fn smoke_fixture_project_through_menu_save_and_rollback() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
+        .args(["smoke", "../../fixtures/mvp"])
         .output()
         .unwrap();
     assert!(
@@ -40,7 +40,7 @@ fn new_creates_writer_ready_project() {
     let root = temp_project("new_project");
     let _ = fs::remove_dir_all(&root);
 
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
         .arg("new")
         .arg(&root)
         .output()
@@ -54,7 +54,7 @@ fn new_creates_writer_ready_project() {
     assert!(root.join("script/start.vn").exists());
     assert!(root.join("locale/en-US.ftl").exists());
 
-    let check = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let check = Command::new(env!("CARGO_BIN_EXE_vn"))
         .arg("check")
         .arg(&root)
         .output()
@@ -69,7 +69,7 @@ fn new_creates_writer_ready_project() {
 
 #[test]
 fn writer_tools_dump_and_list_project_data() {
-    let ast = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let ast = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["dump-ast", "../../fixtures/mvp"])
         .output()
         .unwrap();
@@ -80,7 +80,7 @@ fn writer_tools_dump_and_list_project_data() {
     );
     assert!(String::from_utf8_lossy(&ast.stdout).contains("statements"));
 
-    let ir = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let ir = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["dump-ir", "../../fixtures/mvp"])
         .output()
         .unwrap();
@@ -91,7 +91,7 @@ fn writer_tools_dump_and_list_project_data() {
     );
     assert!(String::from_utf8_lossy(&ir.stdout).contains("ops"));
 
-    let assets = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let assets = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["list-assets", "../../fixtures/mvp"])
         .output()
         .unwrap();
@@ -102,7 +102,7 @@ fn writer_tools_dump_and_list_project_data() {
     );
     assert!(String::from_utf8_lossy(&assets.stdout).contains("assets/bg/room.png"));
 
-    let fmt = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let fmt = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["fmt", "../../fixtures/mvp"])
         .output()
         .unwrap();
@@ -129,7 +129,7 @@ fn extract_locales_prints_fluent_entries() {
     )
     .unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
         .arg("extract-locales")
         .arg(&root)
         .output()
@@ -147,7 +147,7 @@ fn extract_locales_prints_fluent_entries() {
 }
 
 #[test]
-fn run_uses_requested_locale() {
+fn smoke_uses_requested_locale() {
     let root = temp_project("locale_run");
     fs::create_dir_all(root.join("script")).unwrap();
     fs::create_dir_all(root.join("locale")).unwrap();
@@ -167,8 +167,8 @@ fn run_uses_requested_locale() {
     )
     .unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
-        .args(["run", "--locale", "id-ID"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
+        .args(["smoke", "--locale", "id-ID"])
         .arg(&root)
         .output()
         .unwrap();
@@ -192,7 +192,7 @@ fn check_reports_parse_errors_from_multiple_files() {
     fs::write(root.join("script/a.vn"), "wat\nnope\n").unwrap();
     fs::write(root.join("script/b.vn"), "bad\n").unwrap();
 
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
         .arg("check")
         .arg(&root)
         .output()
@@ -208,7 +208,7 @@ fn check_reports_parse_errors_from_multiple_files() {
 
 #[test]
 fn check_reports_all_missing_labels_and_assets() {
-    let output = Command::new(env!("CARGO_BIN_EXE_vn_cli"))
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
         .args(["check", "../../fixtures/bad_missing"])
         .output()
         .unwrap();
@@ -218,6 +218,47 @@ fn check_reports_all_missing_labels_and_assets() {
     assert!(stderr.contains("missing asset"));
     assert!(stderr.contains("start.vn:3:5"));
     assert!(stderr.contains("missing label 'nowhere'"));
+}
+
+#[test]
+fn help_distinguishes_run_and_smoke() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(stdout.contains("run"));
+    assert!(stdout.contains("Validate and start the rendered desktop player"));
+    assert!(stdout.contains("smoke"));
+    assert!(stdout.contains("Run deterministic headless VM verification"));
+}
+
+#[test]
+fn omitted_project_defaults_to_current_directory() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
+        .arg("smoke")
+        .current_dir("../../fixtures/mvp")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("say:eileen:Hello."));
+}
+
+#[test]
+fn run_validates_before_reporting_missing_desktop_player() {
+    let output = Command::new(env!("CARGO_BIN_EXE_vn"))
+        .args(["run", "../../fixtures/bad_missing"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("missing asset"));
+    assert!(!stderr.contains("P3"));
 }
 
 fn temp_project(name: &str) -> std::path::PathBuf {

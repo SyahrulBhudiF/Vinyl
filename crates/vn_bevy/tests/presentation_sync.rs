@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use std::time::Duration;
+#[cfg(feature = "audio")]
+use std::{fs, process};
 use vn_bevy::{
     BackgroundRender, MusicRender, PendingChoice, PresentationBackground, PresentationCommandQueue,
     PresentationDialogue, PresentationMenu, PresentationMusic, PresentationSprite, SpriteRender,
@@ -7,6 +9,18 @@ use vn_bevy::{
 };
 use vn_core::{Choice, Script, SourcePos, Stmt, StmtKind, TextEffect, Transition, compile};
 use vn_runtime::PresentationCommand;
+
+#[cfg(feature = "audio")]
+#[test]
+fn corrupt_mp3_is_rejected_before_playback() {
+    let path = std::env::temp_dir().join(format!("vinyl-corrupt-{}.mp3", process::id()));
+    fs::write(&path, b"not an mp3").unwrap();
+
+    let error = vn_bevy::validate_audio(&path).unwrap_err();
+
+    assert!(error.contains(&path.display().to_string()));
+    let _ = fs::remove_file(path);
+}
 
 fn app_with_plugin() -> App {
     let mut app = App::new();
@@ -94,6 +108,14 @@ fn stmt(kind: StmtKind) -> Stmt {
     Stmt { kind, pos: pos() }
 }
 
+fn script(body: Vec<Stmt>) -> Script {
+    let mut statements = vec![stmt(StmtKind::Label {
+        name: "start".to_string(),
+    })];
+    statements.extend(body);
+    Script { statements }
+}
+
 fn collect_background_renders(app: &mut App) -> Vec<Vec3> {
     app.world_mut()
         .query_filtered::<&Transform, With<BackgroundRender>>()
@@ -170,6 +192,59 @@ fn transition_and_text_timers_tick_and_complete_deterministically() {
 }
 
 #[test]
+fn first_advance_completes_typewriter_before_advancing_story() {
+    let mut app = app_with_plugin();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    let mut story = VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "Slow text".to_string(),
+            effect: TextEffect::Typewriter {
+                chars_per_second: 1,
+            },
+        }),
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "Next line".to_string(),
+            effect: TextEffect::Instant,
+        }),
+    ])))
+    .unwrap();
+    let event = story.continue_story().unwrap();
+    app.insert_resource(story);
+    for command in vn_runtime::commands_from_event(&event) {
+        push(&mut app, command);
+    }
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
+    app.update();
+
+    assert!(collect_text_reveals(&mut app).is_empty());
+    assert_eq!(
+        collect_dialogues(&mut app),
+        vec![(None, "Slow text".to_string())]
+    );
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .release(KeyCode::Space);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
+    app.update();
+
+    assert_eq!(
+        collect_dialogues(&mut app),
+        vec![(None, "Next line".to_string())]
+    );
+}
+
+#[test]
 fn instant_commands_do_not_create_transition_state() {
     let mut app = app_with_plugin();
     app.insert_resource(VnRenderable(true));
@@ -206,117 +281,113 @@ fn instant_commands_do_not_create_transition_state() {
 }
 
 fn choice_story() -> VnStory {
-    VnStory::new(compile(&Script {
-        statements: vec![
-            stmt(StmtKind::Menu {
-                choices: vec![
-                    Choice {
+    VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Menu {
+            choices: vec![
+                Choice {
+                    text_id: None,
+                    text: "Stay".to_string(),
+                    condition: None,
+                    body: vec![stmt(StmtKind::Say {
+                        speaker: Some("Guide".to_string()),
                         text_id: None,
-                        text: "Stay".to_string(),
-                        condition: None,
-                        body: vec![stmt(StmtKind::Say {
-                            speaker: Some("Guide".to_string()),
+                        text: "You stayed.".to_string(),
+                        effect: vn_core::TextEffect::Instant,
+                    })],
+                    pos: pos(),
+                },
+                Choice {
+                    text_id: None,
+                    text: "Leave".to_string(),
+                    condition: None,
+                    body: vec![
+                        stmt(StmtKind::Scene {
+                            image: "bg hallway".to_string(),
+                            transition: None,
+                        }),
+                        stmt(StmtKind::Show {
+                            tag: "eileen".to_string(),
+                            attrs: vec!["concerned".to_string()],
+                            position: "right".to_string(),
+                            transition: None,
+                        }),
+                        stmt(StmtKind::Say {
+                            speaker: Some("Eileen".to_string()),
                             text_id: None,
-                            text: "You stayed.".to_string(),
+                            text: "We should leave now.".to_string(),
                             effect: vn_core::TextEffect::Instant,
-                        })],
-                        pos: pos(),
-                    },
-                    Choice {
-                        text_id: None,
-                        text: "Leave".to_string(),
-                        condition: None,
-                        body: vec![
-                            stmt(StmtKind::Scene {
-                                image: "bg hallway".to_string(),
-                                transition: None,
-                            }),
-                            stmt(StmtKind::Show {
-                                tag: "eileen".to_string(),
-                                attrs: vec!["concerned".to_string()],
-                                position: "right".to_string(),
-                                transition: None,
-                            }),
-                            stmt(StmtKind::Say {
-                                speaker: Some("Eileen".to_string()),
-                                text_id: None,
-                                text: "We should leave now.".to_string(),
-                                effect: vn_core::TextEffect::Instant,
-                            }),
-                        ],
-                        pos: pos(),
-                    },
-                ],
-            }),
-            stmt(StmtKind::End),
-        ],
-    }))
+                        }),
+                    ],
+                    pos: pos(),
+                },
+            ],
+        }),
+        stmt(StmtKind::End),
+    ])))
+    .unwrap()
 }
 
 fn dialogue_story() -> VnStory {
-    VnStory::new(compile(&Script {
-        statements: vec![stmt(StmtKind::Say {
-            speaker: Some("Narrator".to_string()),
-            text_id: None,
-            text: "Space advances the story.".to_string(),
-            effect: vn_core::TextEffect::Instant,
-        })],
-    }))
+    VnStory::new(compile(&script(vec![stmt(StmtKind::Say {
+        speaker: Some("Narrator".to_string()),
+        text_id: None,
+        text: "Space advances the story.".to_string(),
+        effect: vn_core::TextEffect::Instant,
+    })])))
+    .unwrap()
 }
 
 fn dialogue_then_visuals_then_dialogue_story() -> VnStory {
-    VnStory::new(compile(&Script {
-        statements: vec![
-            stmt(StmtKind::Say {
-                speaker: Some("Narrator".to_string()),
-                text_id: None,
-                text: "The room is quiet.".to_string(),
-                effect: vn_core::TextEffect::Instant,
-            }),
-            stmt(StmtKind::Scene {
-                image: "bg hallway".to_string(),
-                transition: None,
-            }),
-            stmt(StmtKind::Show {
-                tag: "eileen".to_string(),
-                attrs: vec!["worried".to_string()],
-                position: "left".to_string(),
-                transition: None,
-            }),
-            stmt(StmtKind::Hide {
-                tag: "eileen".to_string(),
-            }),
-            stmt(StmtKind::PlayMusic {
-                path: "audio/tension.ogg".to_string(),
-            }),
-            stmt(StmtKind::StopMusic),
-            stmt(StmtKind::Say {
-                speaker: Some("Eileen".to_string()),
-                text_id: None,
-                text: "We should move before anyone sees us.".to_string(),
-                effect: vn_core::TextEffect::Instant,
-            }),
-        ],
-    }))
+    VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Say {
+            speaker: Some("Narrator".to_string()),
+            text_id: None,
+            text: "The room is quiet.".to_string(),
+            effect: vn_core::TextEffect::Instant,
+        }),
+        stmt(StmtKind::Scene {
+            image: "bg hallway".to_string(),
+            transition: None,
+        }),
+        stmt(StmtKind::Show {
+            tag: "eileen".to_string(),
+            attrs: vec!["worried".to_string()],
+            position: "left".to_string(),
+            transition: None,
+        }),
+        stmt(StmtKind::Hide {
+            tag: "eileen".to_string(),
+        }),
+        stmt(StmtKind::PlayMusic {
+            path: "audio/tension.ogg".to_string(),
+        }),
+        stmt(StmtKind::StopMusic),
+        stmt(StmtKind::Say {
+            speaker: Some("Eileen".to_string()),
+            text_id: None,
+            text: "We should move before anyone sees us.".to_string(),
+            effect: vn_core::TextEffect::Instant,
+        }),
+    ])))
+    .unwrap()
 }
 
 fn menu_only_story() -> VnStory {
-    VnStory::new(compile(&Script {
-        statements: vec![stmt(StmtKind::Menu {
-            choices: vec![Choice {
+    VnStory::new(compile(&script(vec![stmt(StmtKind::Menu {
+        choices: vec![Choice {
+            text_id: None,
+            text: "Continue".to_string(),
+            condition: None,
+            body: vec![stmt(StmtKind::Say {
+                speaker: None,
                 text_id: None,
-                text: "Continue".to_string(),
-                condition: None,
-                body: vec![stmt(StmtKind::Say {
-                    speaker: None,
-                    text_id: None,
-                    text: "Chosen.".to_string(),
-                    effect: vn_core::TextEffect::Instant,
-                })],
-                pos: pos(),
-            }],
-        })],
-    }))
+                text: "Chosen.".to_string(),
+                effect: vn_core::TextEffect::Instant,
+            })],
+            pos: pos(),
+        }],
+    })])))
+    .unwrap()
 }
 #[test]
 fn queued_commands_materialize_presentation_marker_entities() {
@@ -666,7 +737,7 @@ fn keyboard_advance_drains_visual_events_to_next_dialogue() {
 }
 
 #[test]
-fn keyboard_advance_does_not_choose_while_story_is_waiting_on_menu() {
+fn enter_selects_focused_menu_choice() {
     let mut app = app_with_plugin();
     app.init_resource::<ButtonInput<KeyCode>>();
     let mut story = menu_only_story();
@@ -679,6 +750,31 @@ fn keyboard_advance_does_not_choose_while_story_is_waiting_on_menu() {
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::Enter);
+
+    app.update();
+    app.update();
+
+    assert!(collect_menus(&mut app).is_empty());
+    assert_eq!(
+        collect_dialogues(&mut app),
+        vec![(None, "Chosen.".to_string())]
+    );
+}
+
+#[test]
+fn space_does_not_choose_while_story_is_waiting_on_menu() {
+    let mut app = app_with_plugin();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    let mut story = menu_only_story();
+    story.continue_story().unwrap();
+    app.insert_resource(story);
+    push(
+        &mut app,
+        PresentationCommand::ShowMenu(vec!["Continue".to_string()]),
+    );
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
 
     app.update();
 

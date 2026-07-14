@@ -2,20 +2,129 @@ use crate::components::{
     PresentationBackground, PresentationDialogue, PresentationMenu, PresentationMusic,
     PresentationSprite, TextReveal, TransitionAlpha,
 };
-use crate::resources::{PresentationCommandQueue, VnPresentation};
+use crate::resources::{
+    AssetLoadingState, PresentationCommandQueue, VnAssetResolver, VnPresentation,
+};
+use bevy::asset::LoadState;
 use bevy::prelude::*;
 use std::collections::HashSet;
+#[cfg(feature = "audio")]
+use std::fs::File;
+#[cfg(feature = "audio")]
+use std::io::BufReader;
+use std::time::Instant;
 use vn_core::TextEffect;
 use vn_runtime::{PresentationCommand, apply_command};
 
 pub(crate) fn apply_queued_commands(
     mut queue: ResMut<PresentationCommandQueue>,
     mut presentation: ResMut<VnPresentation>,
+    asset_server: Option<Res<AssetServer>>,
+    resolver: Option<Res<VnAssetResolver>>,
+    mut loading: ResMut<AssetLoadingState>,
 ) {
-    while let Some(command) = queue.commands.pop_front() {
-        presentation.pending_commands.push(command.clone());
-        apply_command(&mut presentation.snapshot, &command);
+    while let Some(command) = queue.commands.front() {
+        match command_asset_state(
+            command,
+            asset_server.as_deref(),
+            resolver.as_deref(),
+            &mut loading,
+        ) {
+            CommandAssetState::Ready => {
+                let command = queue.commands.pop_front().expect("front command exists");
+                #[cfg(feature = "audio")]
+                if let PresentationCommand::PlayMusic(path) = &command
+                    && let Some(resolver) = resolver.as_deref()
+                    && resolver.0.audio(path).exists()
+                    && let Err(error) = validate_audio(&resolver.0.audio(path))
+                {
+                    eprintln!("asset load failed: {error}");
+                    loading.error = Some(error);
+                    loading.started_at = None;
+                    loading.pending_path = None;
+                    loading.pending_handle = None;
+                    queue.commands.clear();
+                    break;
+                }
+                presentation.pending_commands.push(command.clone());
+                apply_command(&mut presentation.snapshot, &command);
+                loading.started_at = None;
+                loading.pending_path = None;
+                loading.pending_handle = None;
+            }
+            CommandAssetState::Loading => {
+                loading.started_at.get_or_insert_with(Instant::now);
+                break;
+            }
+            CommandAssetState::Failed(error) => {
+                eprintln!("asset load failed: {error}");
+                loading.error = Some(error);
+                loading.started_at = None;
+                loading.pending_path = None;
+                loading.pending_handle = None;
+                queue.commands.clear();
+                break;
+            }
+        }
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum CommandAssetState {
+    Ready,
+    Loading,
+    Failed(String),
+}
+
+fn command_asset_state(
+    command: &PresentationCommand,
+    asset_server: Option<&AssetServer>,
+    resolver: Option<&VnAssetResolver>,
+    loading: &mut AssetLoadingState,
+) -> CommandAssetState {
+    let Some(path) = command_asset_path(command, resolver) else {
+        return CommandAssetState::Ready;
+    };
+    let Some(asset_server) = asset_server else {
+        return CommandAssetState::Ready;
+    };
+    if loading.pending_path.as_deref() != Some(&path) {
+        loading.pending_handle = Some(asset_server.load_untyped(path.clone()).untyped());
+        loading.pending_path = Some(path.clone());
+    }
+    let Some(handle) = loading.pending_handle.as_ref() else {
+        return CommandAssetState::Loading;
+    };
+    match asset_server.get_load_state(handle.id()) {
+        Some(LoadState::Loaded) => CommandAssetState::Ready,
+        Some(LoadState::Failed(error)) => CommandAssetState::Failed(format!("{path}: {error}")),
+        _ => CommandAssetState::Loading,
+    }
+}
+
+#[cfg(feature = "audio")]
+pub fn validate_audio(path: &std::path::Path) -> Result<(), String> {
+    let file = File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    rodio::Decoder::new(BufReader::new(file))
+        .map(|_| ())
+        .map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn command_asset_path(
+    command: &PresentationCommand,
+    resolver: Option<&VnAssetResolver>,
+) -> Option<String> {
+    let resolver = resolver?;
+    let path = match command {
+        PresentationCommand::SetBackground { image, .. } => resolver.0.background(image),
+        PresentationCommand::ShowSprite { tag, attrs, .. } => resolver.0.sprite(tag, attrs),
+        #[cfg(feature = "audio")]
+        PresentationCommand::PlayMusic(path) => resolver.0.audio(path),
+        #[cfg(not(feature = "audio"))]
+        PresentationCommand::PlayMusic(_) => return None,
+        _ => return None,
+    };
+    Some(resolver.asset_path(path))
 }
 
 pub(crate) fn sync_presentation_entities(

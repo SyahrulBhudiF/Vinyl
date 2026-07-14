@@ -68,6 +68,27 @@ fn parses_dialogue_and_menu_text_ids() {
 }
 
 #[test]
+fn requires_exactly_one_start_label() {
+    let missing = parse_source("missing.vn", "label other:\n    end\n").unwrap();
+    let error = validate(&missing, Path::new(".")).unwrap_err();
+    assert!(error.diagnostics().iter().any(|diagnostic| {
+        diagnostic.render().contains("missing.vn:1:1")
+            && diagnostic.message == "missing required label 'start'"
+    }));
+
+    let duplicate = parse_source(
+        "duplicate.vn",
+        "label start:\n    end\nlabel start:\n    end\n",
+    )
+    .unwrap();
+    let error = validate(&duplicate, Path::new(".")).unwrap_err();
+    assert!(error.diagnostics().iter().any(|diagnostic| {
+        diagnostic.render().contains("duplicate.vn:3:1")
+            && diagnostic.message == "duplicate label 'start'"
+    }));
+}
+
+#[test]
 fn reports_missing_label_with_position() {
     let script = parse_source("bad.vn", "label start:\n    jump missing\n").unwrap();
     let error = validate(&script, Path::new(".")).unwrap_err();
