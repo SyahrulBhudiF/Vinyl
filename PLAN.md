@@ -21,7 +21,7 @@ Update the progress table and task checkbox in the same commit. A phase is compl
 | P3 | Desktop Bevy bootstrap | `[x]` | real window opens |
 | P4 | Asset loading and memory layout | `[x]` | PNG and MP3 decode gates pass |
 | P5 | Rendered story UI and input | `[x]` | first playable fixture passes |
-| P6 | Correct transitions | `[ ]` | fade/dissolve tests pass |
+| P6 | Correct transitions | `[x]` | fade/dissolve tests pass |
 | P7 | Save/load/rollback | `[ ]` | slot round-trip tests pass |
 | P8 | Pause and settings | `[ ]` | interaction tests pass |
 | P9 | End-to-end visual CI | `[ ]` | Linux golden test passes |
@@ -247,25 +247,25 @@ cargo test -p vn_cli
 
 **Gate:** fixture opens with real background, sprite, dialogue, music, and clickable/keyboard menu.
 
-## P6 — Correct transitions `[ ]`
+## P6 — Correct transitions `[x]`
 
 ### P6.1 Fade
 
-- [ ] Old visual fades to blank.
-- [ ] New visual fades in after blank boundary.
-- [ ] Keep old visual alive until its phase completes.
+- [x] Old visual fades to blank.
+- [x] New visual fades in after blank boundary.
+- [x] Keep old visual alive until its phase completes.
 
 ### P6.2 Dissolve
 
-- [ ] Load incoming visual before transition starts.
-- [ ] Crossfade old and new concurrently.
-- [ ] Sprite replacement keeps outgoing entity until crossfade completes.
+- [x] Load incoming visual before transition starts.
+- [x] Crossfade old and new concurrently.
+- [x] Sprite replacement keeps outgoing entity until crossfade completes.
 
 ### P6.3 Input and tests
 
-- [ ] First advance completes active transition immediately.
-- [ ] Next advance continues story.
-- [ ] Test midpoint and completion alpha/lifecycle for fade and dissolve separately.
+- [x] First advance completes active transition immediately.
+- [x] Next advance continues story.
+- [x] Test midpoint and completion alpha/lifecycle for fade and dissolve separately.
 
 **Gate:** fade and dissolve cannot pass using the same lifecycle assertions.
 

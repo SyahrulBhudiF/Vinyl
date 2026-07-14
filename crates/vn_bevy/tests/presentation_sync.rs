@@ -5,7 +5,8 @@ use std::{fs, process};
 use vn_bevy::{
     BackgroundRender, MusicRender, PendingChoice, PresentationBackground, PresentationCommandQueue,
     PresentationDialogue, PresentationMenu, PresentationMusic, PresentationSprite, SpriteRender,
-    TextReveal, TransitionAlpha, VnAssetResolver, VnBevyPlugin, VnRenderable, VnStory,
+    TextReveal, TransitionAlpha, TransitionFlags, TransitionPhase, VnAssetResolver, VnBevyPlugin,
+    VnRenderable, VnStory,
 };
 use vn_core::{Choice, Script, SourcePos, Stmt, StmtKind, TextEffect, Transition, compile};
 use vn_runtime::PresentationCommand;
@@ -171,7 +172,7 @@ fn transition_and_text_timers_tick_and_complete_deterministically() {
     );
     app.update();
 
-    assert_eq!(collect_transition_alphas(&mut app), vec![0, 0]);
+    assert_eq!(collect_transition_alphas(&mut app), vec![0]);
     assert_eq!(collect_text_reveals(&mut app), vec![0]);
 
     app.world_mut()
@@ -179,7 +180,7 @@ fn transition_and_text_timers_tick_and_complete_deterministically() {
         .advance_by(Duration::from_millis(500));
     app.update();
 
-    assert_eq!(collect_transition_alphas(&mut app), vec![500, 500]);
+    assert_eq!(collect_transition_alphas(&mut app), vec![500]);
     assert_eq!(collect_text_reveals(&mut app), vec![5]);
 
     app.world_mut()
@@ -189,6 +190,188 @@ fn transition_and_text_timers_tick_and_complete_deterministically() {
 
     assert!(collect_transition_alphas(&mut app).is_empty());
     assert!(collect_text_reveals(&mut app).is_empty());
+}
+
+fn transition_render_state(app: &mut App) -> Vec<(String, TransitionPhase, u32, bool)> {
+    let mut state = app
+        .world_mut()
+        .query::<(&BackgroundRender, &TransitionAlpha, &TransitionFlags)>()
+        .iter(app.world())
+        .map(|(render, transition, flags)| {
+            (
+                render.image.clone(),
+                transition.phase,
+                transition.alpha_permille(),
+                flags.despawn_after,
+            )
+        })
+        .collect::<Vec<_>>();
+    state.sort_by(|left, right| left.0.cmp(&right.0));
+    state
+}
+
+#[test]
+fn fade_keeps_old_visual_then_starts_incoming_after_blank() {
+    let mut app = app_with_plugin();
+    app.insert_resource(VnRenderable(true));
+    app.insert_resource(VnAssetResolver::new("."));
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "old".to_string(),
+            transition: None,
+        },
+    );
+    app.update();
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "new".to_string(),
+            transition: Some(Transition {
+                kind: "fade".to_string(),
+                duration_ms: 1000,
+            }),
+        },
+    );
+    app.update();
+
+    assert_eq!(
+        transition_render_state(&mut app),
+        vec![
+            ("new".to_string(), TransitionPhase::FadeIn, 0, false),
+            ("old".to_string(), TransitionPhase::FadeOut, 1000, true),
+        ]
+    );
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+    assert_eq!(
+        transition_render_state(&mut app),
+        vec![
+            ("new".to_string(), TransitionPhase::FadeIn, 0, false),
+            ("old".to_string(), TransitionPhase::FadeOut, 500, true),
+        ]
+    );
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+    assert_eq!(
+        transition_render_state(&mut app),
+        vec![("new".to_string(), TransitionPhase::FadeIn, 500, false)]
+    );
+}
+
+#[test]
+fn dissolve_crossfades_old_and_new_concurrently() {
+    let mut app = app_with_plugin();
+    app.insert_resource(VnRenderable(true));
+    app.insert_resource(VnAssetResolver::new("."));
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "old".to_string(),
+            transition: None,
+        },
+    );
+    app.update();
+    push(
+        &mut app,
+        PresentationCommand::SetBackground {
+            image: "new".to_string(),
+            transition: Some(Transition {
+                kind: "dissolve".to_string(),
+                duration_ms: 1000,
+            }),
+        },
+    );
+    app.update();
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+    assert_eq!(
+        transition_render_state(&mut app),
+        vec![
+            ("new".to_string(), TransitionPhase::DissolveIn, 500, false),
+            ("old".to_string(), TransitionPhase::DissolveOut, 500, true),
+        ]
+    );
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_millis(500));
+    app.update();
+    assert!(transition_render_state(&mut app).is_empty());
+    assert_eq!(
+        app.world_mut()
+            .query::<&BackgroundRender>()
+            .iter(app.world())
+            .map(|render| render.image.clone())
+            .collect::<Vec<_>>(),
+        vec!["new".to_string()]
+    );
+}
+
+#[test]
+fn first_advance_completes_transition_before_advancing_story() {
+    let mut app = app_with_plugin();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.insert_resource(VnRenderable(true));
+    app.insert_resource(VnAssetResolver::new("."));
+    let mut story = VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Scene {
+            image: "old".to_string(),
+            transition: None,
+        }),
+        stmt(StmtKind::Scene {
+            image: "new".to_string(),
+            transition: Some(Transition {
+                kind: "dissolve".to_string(),
+                duration_ms: 1000,
+            }),
+        }),
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "After".to_string(),
+            effect: TextEffect::Instant,
+        }),
+    ])))
+    .unwrap();
+    for _ in 0..2 {
+        let event = story.continue_story().unwrap();
+        for command in vn_runtime::commands_from_event(&event) {
+            push(&mut app, command);
+        }
+        app.update();
+    }
+    app.insert_resource(story);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
+    app.update();
+
+    assert!(transition_render_state(&mut app).is_empty());
+    assert!(collect_dialogues(&mut app).is_empty());
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .release(KeyCode::Space);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::Space);
+    app.update();
+
+    assert_eq!(
+        collect_dialogues(&mut app),
+        vec![(None, "After".to_string())]
+    );
 }
 
 #[test]

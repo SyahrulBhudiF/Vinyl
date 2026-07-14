@@ -37,20 +37,44 @@ pub struct PresentationMusic {
     pub path: String,
 }
 
-/// Transient alpha transition state.
+/// Transition phase applied to one rendered visual.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransitionPhase {
+    FadeOut,
+    FadeIn,
+    DissolveOut,
+    DissolveIn,
+}
+
+/// Transient visual transition state.
 #[derive(Clone, Debug, Eq, PartialEq, Component)]
 pub struct TransitionAlpha {
     pub elapsed_ms: u32,
     pub duration_ms: u32,
+    pub phase: TransitionPhase,
 }
 
 impl TransitionAlpha {
     pub fn alpha_permille(&self) -> u32 {
         if self.duration_ms == 0 {
-            return 1000;
+            return match self.phase {
+                TransitionPhase::FadeOut | TransitionPhase::DissolveOut => 0,
+                TransitionPhase::FadeIn | TransitionPhase::DissolveIn => 1000,
+            };
         }
-        (self.elapsed_ms.saturating_mul(1000) / self.duration_ms).min(1000)
+        let progress = (self.elapsed_ms.saturating_mul(1000) / self.duration_ms).min(1000);
+        match self.phase {
+            TransitionPhase::FadeOut | TransitionPhase::DissolveOut => 1000 - progress,
+            TransitionPhase::FadeIn | TransitionPhase::DissolveIn => progress,
+        }
     }
+}
+
+/// Transition lifecycle flags for one rendered visual.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Component)]
+pub struct TransitionFlags {
+    pub despawn_after: bool,
+    pub await_fade_in: bool,
 }
 
 /// Transient typewriter reveal state.

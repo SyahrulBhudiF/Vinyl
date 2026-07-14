@@ -1,10 +1,8 @@
 use crate::camera::spawn_camera;
 use crate::input::{MenuFocus, apply_pending_choice, keyboard_advance_story};
-use crate::render::{fit_loaded_sprites, sync_render_entities};
+use crate::render::{fit_loaded_sprites, sync_render_entities, tick_transition_alpha};
 use crate::resources::{AssetLoadingState, PresentationCommandQueue, VnPresentation, VnRenderable};
-use crate::systems::{
-    apply_queued_commands, sync_presentation_entities, tick_text_reveal, tick_transition_alpha,
-};
+use crate::systems::{apply_queued_commands, sync_presentation_entities, tick_text_reveal};
 use bevy::prelude::*;
 
 /// Bevy plugin that owns renderer-facing VN presentation resources.

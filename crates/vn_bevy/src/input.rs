@@ -1,5 +1,6 @@
-use crate::components::{TextReveal, TransitionAlpha};
+use crate::components::TextReveal;
 use crate::driver::VnStory;
+use crate::render::{TransitionQueryItem, complete_transitions};
 use crate::resources::{AssetLoadingState, PresentationCommandQueue};
 use bevy::ecs::system::SystemParam;
 use bevy::input::ButtonInput;
@@ -23,7 +24,7 @@ pub struct AdvanceInput<'w, 's> {
     queue: ResMut<'w, PresentationCommandQueue>,
     loading: Res<'w, AssetLoadingState>,
     focus: ResMut<'w, MenuFocus>,
-    transitions: Query<'w, 's, (Entity, Option<&'static mut Sprite>), With<TransitionAlpha>>,
+    transitions: Query<'w, 's, TransitionQueryItem<'static>>,
     reveals: Query<'w, 's, Entity, With<TextReveal>>,
 }
 
@@ -36,7 +37,7 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
         mut queue,
         loading,
         mut focus,
-        mut transitions,
+        transitions,
         reveals,
     } = input;
     if loading.started_at.is_some() || loading.error.is_some() {
@@ -72,14 +73,7 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
     if !(key_advance || click_advance) {
         return;
     }
-    let mut completed_effect = false;
-    for (entity, sprite) in &mut transitions {
-        if let Some(mut sprite) = sprite {
-            sprite.color = sprite.color.with_alpha(1.0);
-        }
-        commands.entity(entity).remove::<TransitionAlpha>();
-        completed_effect = true;
-    }
+    let mut completed_effect = complete_transitions(&mut commands, transitions);
     for entity in &reveals {
         commands.entity(entity).remove::<TextReveal>();
         completed_effect = true;

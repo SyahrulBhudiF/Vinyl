@@ -1,6 +1,6 @@
 use crate::components::{
     PresentationBackground, PresentationDialogue, PresentationMenu, PresentationMusic,
-    PresentationSprite, TextReveal, TransitionAlpha,
+    PresentationSprite, TextReveal,
 };
 use crate::resources::{
     AssetLoadingState, PresentationCommandQueue, VnAssetResolver, VnPresentation,
@@ -174,14 +174,10 @@ fn sync_background(
                         PresentationCommand::SetBackground { transition, .. } => transition.clone(),
                         _ => None,
                     });
-                let alpha = transition_alpha(transition.clone());
-                let mut entity = commands.spawn(PresentationBackground {
+                commands.spawn(PresentationBackground {
                     image: image.clone(),
                     transition,
                 });
-                if let Some(alpha) = alpha {
-                    entity.insert(alpha);
-                }
             }
         }
         None => despawn_all(commands, backgrounds.iter().map(|(entity, _)| entity)),
@@ -231,16 +227,12 @@ fn sync_sprites(
                 } if changed_tag == tag => transition.clone(),
                 _ => None,
             });
-        let alpha = transition_alpha(transition.clone());
-        let mut entity = commands.spawn(PresentationSprite {
+        commands.spawn(PresentationSprite {
             tag: tag.clone(),
             attrs: sprite.attrs.clone(),
             position: sprite.position.clone(),
             transition,
         });
-        if let Some(alpha) = alpha {
-            entity.insert(alpha);
-        }
     }
 }
 
@@ -335,24 +327,6 @@ fn sync_music_marker(
     }
 }
 
-pub(crate) fn tick_transition_alpha(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut transitions: Query<(Entity, &mut TransitionAlpha, Option<&mut Sprite>)>,
-) {
-    let delta_ms = time.delta().as_millis().min(u128::from(u32::MAX)) as u32;
-    for (entity, mut transition, sprite) in &mut transitions {
-        transition.elapsed_ms = transition.elapsed_ms.saturating_add(delta_ms);
-        let alpha = transition.alpha_permille() as f32 / 1000.0;
-        if let Some(mut sprite) = sprite {
-            sprite.color = sprite.color.with_alpha(alpha);
-        }
-        if transition.elapsed_ms >= transition.duration_ms {
-            commands.entity(entity).remove::<TransitionAlpha>();
-        }
-    }
-}
-
 pub(crate) fn tick_text_reveal(
     time: Res<Time>,
     mut commands: Commands,
@@ -365,14 +339,6 @@ pub(crate) fn tick_text_reveal(
             commands.entity(entity).remove::<TextReveal>();
         }
     }
-}
-
-fn transition_alpha(transition: Option<vn_core::Transition>) -> Option<TransitionAlpha> {
-    let duration_ms = transition?.duration_ms;
-    (duration_ms > 0).then_some(TransitionAlpha {
-        elapsed_ms: 0,
-        duration_ms,
-    })
 }
 
 fn text_reveal(text: &str, effect: TextEffect) -> Option<TextReveal> {
