@@ -21,7 +21,7 @@ def compare(actual: Path, golden: Path, tolerance: int) -> None:
     if expected.size != image.size:
         raise SystemExit(f"image size changed: actual={image.size} golden={expected.size}")
     difference = ImageChops.difference(image, expected)
-    changed = sum(1 for pixel in difference.get_flattened_data() if max(pixel) > tolerance)
+    changed = sum(1 for pixel in difference.getdata() if max(pixel) > tolerance)
     allowed = image.width * image.height // 1000
     if changed > allowed:
         diff = actual.with_name(f"{actual.stem}-diff.png")
