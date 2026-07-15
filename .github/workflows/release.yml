@@ -49,7 +49,7 @@ jobs:
           Priority: optional
           Architecture: amd64
           Maintainer: Vinyl contributors
-          Depends: libasound2, libudev1, libx11-6, libxcursor1, libxi6, libxrandr2
+          Depends: libasound2, libudev1, libx11-6, libxcursor1, libxi6, libxkbcommon-x11-0, libxrandr2
           Description: Vinyl visual novel player and writer CLI
           EOF
           dpkg-deb --build dist/deb "vinyl_${version}_amd64.deb"
@@ -65,7 +65,7 @@ jobs:
           %description
           Vinyl visual novel player and writer CLI.
 
-          Requires: alsa-lib, libudev, libX11, libXcursor, libXi, libXrandr
+          Requires: alsa-lib, libudev, libX11, libXcursor, libXi, libxkbcommon-x11, libXrandr
 
           %install
           mkdir -p %{buildroot}%{_bindir}

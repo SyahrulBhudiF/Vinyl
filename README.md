@@ -35,7 +35,7 @@ Vinyl uses X11 or XWayland. Install the common runtime libraries, then install t
 
 ```bash
 # Ubuntu/Debian
-sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxrandr2
+sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxkbcommon-x11-0 libxrandr2
 
 chmod +x vn-linux-x86_64
 sudo mv vn-linux-x86_64 /usr/local/bin/vn

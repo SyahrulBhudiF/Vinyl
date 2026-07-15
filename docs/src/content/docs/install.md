@@ -10,12 +10,12 @@ Vinyl ships as one executable named `vn`. It contains both the desktop player an
 
 - x86-64 Linux
 - X11 or XWayland
-- ALSA, udev, X11, Xcursor, Xi, and Xrandr runtime libraries
+- ALSA, udev, X11, Xcursor, Xi, XKB X11, and Xrandr runtime libraries
 
 Ubuntu or Debian:
 
 ```bash
-sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxrandr2
+sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxkbcommon-x11-0 libxrandr2
 chmod +x vn-linux-x86_64
 sudo mv vn-linux-x86_64 /usr/local/bin/vn
 vn --help
