@@ -21,9 +21,9 @@ intro-ask = Ask
 Commands:
 
 ```bash
-vn_cli extract-locales fixtures/mvp
-vn_cli check fixtures/mvp --locale id-ID
-vn_cli run fixtures/mvp --locale id-ID
+vn extract-locales fixtures/mvp
+vn check fixtures/mvp --locale id-ID
+vn run fixtures/mvp --locale id-ID
 ```
 
 Missing translations fall back to source script text at runtime.

@@ -1,6 +1,6 @@
 label start:
-    scene bg room with fade(duration=500)
-    show eileen happy at center with dissolve(duration=500)
+    scene bg room with fade(duration=0.5)
+    show eileen happy at center with dissolve(duration=0.5)
     play music "theme.mp3"
     eileen "Hello." with typewriter(speed=30)
     menu:

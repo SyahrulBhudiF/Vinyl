@@ -477,6 +477,59 @@ fn first_advance_completes_typewriter_before_advancing_story() {
 }
 
 #[test]
+fn click_that_reveals_menu_cannot_select_it_until_released() {
+    let mut app = app_with_plugin();
+    app.init_resource::<ButtonInput<MouseButton>>();
+    let mut story = VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "Choose".to_string(),
+            effect: TextEffect::Instant,
+        }),
+        stmt(StmtKind::Menu {
+            choices: vec![Choice {
+                text_id: None,
+                text: "Continue".to_string(),
+                condition: None,
+                body: vec![stmt(StmtKind::Say {
+                    speaker: None,
+                    text_id: None,
+                    text: "Selected".to_string(),
+                    effect: TextEffect::Instant,
+                })],
+                pos: pos(),
+            }],
+        }),
+    ])))
+    .unwrap();
+    let event = story.continue_story().unwrap();
+    app.insert_resource(story);
+    for command in vn_runtime::commands_from_event(&event) {
+        push(&mut app, command);
+    }
+    app.update();
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+
+    assert!(matches!(
+        app.world().resource::<VnStory>().last_event(),
+        Some(vn_core::VmEvent::Menu { .. })
+    ));
+    assert!(app.world().resource::<vn_bevy::MenuClickGuard>().0);
+    assert!(app.world().get_resource::<PendingChoice>().is_none());
+
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .release(MouseButton::Left);
+    app.update();
+    assert!(!app.world().resource::<vn_bevy::MenuClickGuard>().0);
+}
+
+#[test]
 fn instant_commands_do_not_create_transition_state() {
     let mut app = app_with_plugin();
     app.insert_resource(VnRenderable(true));

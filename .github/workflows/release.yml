@@ -15,21 +15,23 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: vn_cli-linux-x86_64
-            bin: target/release/vn_cli
+            artifact: vn-linux-x86_64
+            bin: target/release/vn
             package: true
           - os: macos-latest
-            artifact: vn_cli-macos-aarch64
-            bin: target/release/vn_cli
+            artifact: vn-macos-aarch64
+            bin: target/release/vn
           - os: windows-latest
-            artifact: vn_cli-windows-x86_64.exe
-            bin: target/release/vn_cli.exe
+            artifact: vn-windows-x86_64.exe
+            bin: target/release/vn.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p vn_cli --release --no-default-features
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev
+      - run: cargo build -p vn_cli --release --features audio
       - shell: bash
         run: cp "${{ matrix.bin }}" "${{ matrix.artifact }}"
       - if: matrix.package == true
@@ -38,7 +40,7 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           mkdir -p dist/deb/usr/bin dist/rpm/SOURCES dist/rpm/SPECS
-          install -m 0755 target/release/vn_cli dist/deb/usr/bin/vn_cli
+          install -m 0755 target/release/vn dist/deb/usr/bin/vn
           mkdir -p dist/deb/DEBIAN
           cat > dist/deb/DEBIAN/control <<EOF
           Package: vinyl
@@ -47,27 +49,30 @@ jobs:
           Priority: optional
           Architecture: amd64
           Maintainer: Vinyl contributors
-          Description: Visual novel engine CLI
+          Depends: libasound2, libudev1, libx11-6, libxcursor1, libxi6, libxrandr2
+          Description: Vinyl visual novel player and writer CLI
           EOF
           dpkg-deb --build dist/deb "vinyl_${version}_amd64.deb"
-          cp target/release/vn_cli dist/rpm/SOURCES/vn_cli
+          cp target/release/vn dist/rpm/SOURCES/vn
           cat > dist/rpm/SPECS/vinyl.spec <<EOF
           Name: vinyl
           Version: ${version}
           Release: 1%{?dist}
-          Summary: Visual novel engine CLI
+          Summary: Vinyl visual novel player and writer CLI
           License: MIT
           BuildArch: x86_64
 
           %description
-          Visual novel engine CLI.
+          Vinyl visual novel player and writer CLI.
+
+          Requires: alsa-lib, libudev, libX11, libXcursor, libXi, libXrandr
 
           %install
           mkdir -p %{buildroot}%{_bindir}
-          install -m 0755 %{_sourcedir}/vn_cli %{buildroot}%{_bindir}/vn_cli
+          install -m 0755 %{_sourcedir}/vn %{buildroot}%{_bindir}/vn
 
           %files
-          %{_bindir}/vn_cli
+          %{_bindir}/vn
           EOF
           sudo apt-get update
           sudo apt-get install -y rpm

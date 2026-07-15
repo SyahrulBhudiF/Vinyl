@@ -1,0 +1,24 @@
+name: visual
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux-golden:
+    runs-on: ubuntu-latest
+    env:
+      WGPU_BACKEND: vulkan
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev mesa-vulkan-drivers xvfb python3-pil
+      - run: cargo build -p vn_cli --features audio
+      - run: xvfb-run -a -s '-screen 0 1280x720x24' python3 scripts/visual-ci.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-diff
+          path: target/visual-ci

@@ -1,7 +1,7 @@
 # Vinyl
 
 Vinyl is a Rust visual novel engine for people writing games.
-Download `vn_cli`, make a project, write `.vn` scripts, add assets, then check and run it.
+Download `vn`, make a project, write `.vn` scripts, add assets, then check and run it.
 
 ## Who is this for?
 
@@ -21,7 +21,7 @@ MVP engine and CLI tooling are in progress. Currently included:
 - Transition and text-effect metadata.
 - Runtime VM with deterministic save and rollback.
 - Localization with Fluent `.ftl` files.
-- Writer CLI: `new`, `check`, `run`, `dump-ast`, `dump-ir`, `list-assets`, `extract-locales`.
+- Desktop player plus writer CLI: `new`, `check`, `run`, `smoke`, `dump-ast`, `dump-ir`, `list-assets`, `extract-locales`.
 - Astro Starlight documentation site in `docs/`.
 - CI and release workflows for prebuilt binaries.
 
@@ -35,24 +35,26 @@ Download a binary from the latest GitHub Release:
 
 Pick the file for your OS:
 
-- Linux: `vn_cli-linux-x86_64`
-- macOS: `vn_cli-macos-aarch64`
-- Windows: `vn_cli-windows-x86_64.exe`
+- Linux: `vn-linux-x86_64`
+- macOS: `vn-macos-aarch64`
+- Windows: `vn-windows-x86_64.exe`
 
-Rename it to `vn_cli` and place it somewhere in your PATH.
+Rename it to `vn` and place it somewhere in your PATH.
 
 Linux/macOS example:
 
 ```bash
-chmod +x vn_cli-linux-x86_64
-mv vn_cli-linux-x86_64 vn_cli
-./vn_cli --help
+chmod +x vn-linux-x86_64
+mv vn-linux-x86_64 vn
+./vn --help
 ```
+
+Linux uses X11 or XWayland and requires ALSA, udev, X11, cursor, input, and RandR runtime libraries. Native Wayland and web builds are deferred.
 
 Windows example:
 
-1. Download `vn_cli-windows-x86_64.exe`.
-2. Rename it to `vn_cli.exe`.
+1. Download `vn-windows-x86_64.exe`.
+2. Rename it to `vn.exe`.
 3. Move it to a folder, for example `C:\Tools\Vinyl\`.
 4. Add that folder to `Path`:
    - Start menu → search “Environment Variables”.
@@ -63,7 +65,7 @@ Windows example:
 5. Open a new PowerShell window:
 
 ```powershell
-vn_cli --help
+vn --help
 ```
 
 ### Engine development install
@@ -80,11 +82,11 @@ cargo test --workspace
 Create a new project:
 
 ```bash
-vn_cli new my-game
+vn new my-game
 cd my-game
 ```
 
-`vn_cli new` creates this structure:
+`vn new` creates this structure:
 
 ```text
 my-game/
@@ -100,29 +102,35 @@ my-game/
     └── audio/          # music and sound effects
 ```
 
-`locale/en-US.ftl` is a Fluent translation file. You do not download it separately; it is created by `vn_cli new`. If you add text IDs in `.vn` files, run this to fill missing locale entries:
+`locale/en-US.ftl` is a Fluent translation file. You do not download it separately; it is created by `vn new`. If you add text IDs in `.vn` files, run this to fill missing locale entries:
 
 ```bash
-vn_cli extract-locales .
+vn extract-locales .
 ```
 
 Validate the project:
 
 ```bash
-vn_cli check .
+vn check .
 ```
 
-Run a deterministic CLI smoke test:
+Launch the desktop player:
 
 ```bash
-vn_cli run .
+vn run .
+```
+
+Run deterministic headless verification:
+
+```bash
+vn smoke .
 ```
 
 Use a specific locale:
 
 ```bash
-vn_cli check . --locale en-US
-vn_cli run . --locale en-US
+vn check . --locale en-US
+vn run . --locale en-US
 ```
 
 ## Editor syntax highlighting
@@ -185,6 +193,8 @@ label end:
     end
 ```
 
+Player controls: Space/Enter/left-click advances; arrow/number keys or mouse select choices; Page Up or wheel-up rolls back; Escape pauses; F5/F9 opens Save/Load; Alt+Enter toggles fullscreen. There are 12 manual slots plus one autosave. Per-project saves and `preferences.json` use the OS data directory; preferences are outside save slots. Music restarts after load/rollback. Missing audio devices warn and continue silently. Player UI labels are English; locale affects script content only. MVP assets are PNG images and MP3 music.
+
 Asset paths are resolved like this:
 
 ```text
@@ -218,44 +228,44 @@ audio = "audio"
 ## CLI commands
 
 ```bash
-vn_cli new <project>
+vn new <project>
 ```
 
 Create a writer-ready project.
 
 ```bash
-vn_cli check <project> [--locale en-US]
+vn check <project> [--locale en-US]
 ```
 
 Parse and validate scripts, labels, assets, and locale entries.
 
 ```bash
-vn_cli run <project> [--locale en-US]
+vn run <project> [--locale en-US]
 ```
 
-Run the project through the deterministic CLI runtime. Useful for smoke testing script execution.
+Validate and launch the rendered desktop player. Use `vn smoke <project>` for deterministic headless VM verification.
 
 ```bash
-vn_cli list-assets <project>
+vn list-assets <project>
 ```
 
 Print all asset paths referenced by scripts.
 
 ```bash
-vn_cli extract-locales <project>
+vn extract-locales <project>
 ```
 
 Generate Fluent entries from script text IDs.
 
 ```bash
-vn_cli dump-ast <project>
-vn_cli dump-ir <project>
+vn dump-ast <project>
+vn dump-ir <project>
 ```
 
 Print parser/compiler output as JSON for debugging.
 
 ```bash
-vn_cli fmt <project>
+vn fmt <project>
 ```
 
 Currently a parse/check placeholder. Full source rewriting is not implemented yet.
@@ -309,7 +319,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub builds `vn_cli` for Linux, macOS, and Windows, then uploads the binaries to GitHub Releases.
+GitHub builds `vn` for Linux, macOS, and Windows, then uploads the binaries to GitHub Releases.
 
 This is important because **game developers can download the CLI directly without installing Rust or running `cargo build`**.
 
@@ -329,4 +339,4 @@ cargo test --workspace --no-fail-fast --no-default-features
 - `vn_script`: parser, validator, manifest, asset resolver, localization loader.
 - `vn_runtime`: presentation orchestration.
 - `vn_bevy`: Bevy renderer integration.
-- `vn_cli`: writer/developer CLI.
+- `vn_cli`: internal crate that builds the public `vn` player/CLI.

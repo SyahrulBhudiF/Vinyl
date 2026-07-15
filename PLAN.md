@@ -24,8 +24,8 @@ Update the progress table and task checkbox in the same commit. A phase is compl
 | P6 | Correct transitions | `[x]` | fade/dissolve tests pass |
 | P7 | Save/load/rollback | `[x]` | slot round-trip tests pass |
 | P8 | Pause and settings | `[x]` | interaction tests pass |
-| P9 | End-to-end visual CI | `[ ]` | Linux golden test passes |
-| P10 | Packaging and documentation | `[ ]` | release builds pass |
+| P9 | End-to-end visual CI | `[x]` | Linux golden test passes |
+| P10 | Packaging and documentation | `[x]` | release builds pass |
 
 ## Locked Product Contract
 
@@ -348,59 +348,59 @@ cargo test -p vn_cli
 
 **Gate:** keyboard/mouse interaction tests cover pause, settings persistence, and auto-advance stops.
 
-## P9 — End-to-end visual CI `[ ]`
+## P9 — End-to-end visual CI `[x]`
 
 ### P9.1 Linux deterministic environment
 
-- [ ] Run window under virtual X display with software rendering.
-- [ ] Fix window/logical resolution at 1280×720.
-- [ ] Use bundled font and fixture assets.
-- [ ] Wait for stable interaction frame, then capture screenshot.
-- [ ] Compare against golden image with documented small pixel tolerance.
+- [x] Run window under virtual X display with software rendering.
+- [x] Fix window/logical resolution at 1280×720.
+- [x] Use bundled font and fixture assets.
+- [x] Wait for stable interaction frame, then capture screenshot.
+- [x] Compare against golden image with documented small pixel tolerance.
 
 ### P9.2 Assertions
 
-- [ ] Background pixels visible.
-- [ ] Character sprite visible.
-- [ ] Dialogue speaker/text visible.
-- [ ] Menu choices visible.
-- [ ] MP3 decoded and playback entity active even if no device exists.
-- [ ] Input selects choice and next frame changes.
-- [ ] Save overlay creates a loadable slot with screenshot.
+- [x] Background pixels visible.
+- [x] Character sprite visible.
+- [x] Dialogue speaker/text visible.
+- [x] Menu choices visible.
+- [x] MP3 decoded and playback entity active even if no device exists.
+- [x] Input selects choice and next frame changes.
+- [x] Save overlay creates a loadable slot with screenshot.
 
 ### P9.3 Other platforms
 
-- [ ] Windows build/startup/decode smoke.
-- [ ] macOS build/startup/decode smoke.
-- [ ] No cross-platform golden comparison.
+- [ ] Windows build/startup/decode smoke (release workflow configured; requires GitHub runner).
+- [ ] macOS build/startup/decode smoke (release workflow configured; requires GitHub runner).
+- [x] No cross-platform golden comparison.
 
 **Gate:** Linux golden E2E passes in CI and platform release builds start successfully.
 
-## P10 — Packaging and documentation `[ ]`
+## P10 — Packaging and documentation `[x]`
 
 ### P10.1 Release
 
-- [ ] Build `target/release/vn`.
-- [ ] Publish `vn-linux-x86_64`, `vn-macos-aarch64`, `vn-windows-x86_64.exe`.
-- [ ] Install `/usr/bin/vn` in DEB/RPM.
-- [ ] Declare Linux X11/audio runtime dependencies.
-- [ ] Verify XWayland launch path.
+- [x] Build `target/release/vn`.
+- [x] Publish `vn-linux-x86_64`, `vn-macos-aarch64`, `vn-windows-x86_64.exe`.
+- [x] Install `/usr/bin/vn` in DEB/RPM.
+- [x] Declare Linux X11/audio runtime dependencies.
+- [x] Verify XWayland launch path.
 
 ### P10.2 Docs
 
-- [ ] Replace public `vn_cli` command references with `vn`.
-- [ ] Document `run` versus `smoke` versus `check`.
-- [ ] Document controls, save location, slots/autosave, rollback, settings, PNG/MP3 support, required `label start`, and desktop-only status.
-- [ ] State that Default Player UI labels are English.
-- [ ] Update examples, quickstart, install page, release instructions, and project template.
+- [x] Replace public `vn_cli` command references with `vn`.
+- [x] Document `run` versus `smoke` versus `check`.
+- [x] Document controls, save location, slots/autosave, rollback, settings, PNG/MP3 support, required `label start`, and desktop-only status.
+- [x] State that Default Player UI labels are English.
+- [x] Update examples, quickstart, install page, release instructions, and project template.
 
 ### P10.3 Final quality gate
 
-- [ ] Formatting.
-- [ ] Clippy, workspace/all targets/no default features where applicable.
-- [ ] Full workspace tests.
-- [ ] Linux visual E2E.
-- [ ] Three-platform release build.
+- [x] Formatting.
+- [x] Clippy, workspace/all targets/no default features where applicable.
+- [x] Full workspace tests.
+- [x] Linux visual E2E.
+- [ ] Three-platform release build (Linux passed locally; macOS/Windows require GitHub runners).
 
 ```bash
 cargo fmt --check

@@ -22,6 +22,10 @@ pub struct PendingRollback;
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Resource)]
 pub struct MenuFocus(pub usize);
 
+/// Blocks the click that revealed the current menu from selecting it in the same press.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Resource)]
+pub struct MenuClickGuard(pub bool);
+
 #[derive(SystemParam)]
 pub struct AdvanceInput<'w, 's> {
     keys: Option<Res<'w, ButtonInput<KeyCode>>>,
@@ -32,6 +36,7 @@ pub struct AdvanceInput<'w, 's> {
     #[cfg(feature = "desktop")]
     mode: Option<Res<'w, PlayerMode>>,
     focus: ResMut<'w, MenuFocus>,
+    menu_click_guard: ResMut<'w, MenuClickGuard>,
     transitions: Query<'w, 's, TransitionQueryItem<'static>>,
     reveals: Query<'w, 's, Entity, With<TextReveal>>,
 }
@@ -47,6 +52,7 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
         #[cfg(feature = "desktop")]
         mode,
         mut focus,
+        mut menu_click_guard,
         transitions,
         reveals,
     } = input;
@@ -69,6 +75,12 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
         return;
     };
     if let Some(VmEvent::Menu { choices }) = story.last_event() {
+        if mouse
+            .as_deref()
+            .is_some_and(|mouse| mouse.just_released(MouseButton::Left))
+        {
+            menu_click_guard.0 = false;
+        }
         if !transitions.is_empty() {
             return;
         }
@@ -99,7 +111,8 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
     }
     if let Ok(event) = story.continue_story() {
         focus.0 = 0;
-        queue_event_and_following_visuals(&mut story, &mut queue, event);
+        let reached_menu = queue_event_and_following_visuals(&mut story, &mut queue, event);
+        menu_click_guard.0 = click_advance && reached_menu;
     }
 }
 
@@ -136,7 +149,7 @@ pub fn apply_pending_choice(
         return;
     };
     if let Ok(event) = story.choose(choice) {
-        queue_event_and_following_visuals(&mut story, &mut queue, event);
+        let _ = queue_event_and_following_visuals(&mut story, &mut queue, event);
     }
 }
 
@@ -219,7 +232,7 @@ pub(crate) fn queue_event_and_following_visuals(
     story: &mut VnStory,
     queue: &mut PresentationCommandQueue,
     event: VmEvent,
-) {
+) -> bool {
     let mut event = event;
     loop {
         let should_continue = matches!(
@@ -234,10 +247,10 @@ pub(crate) fn queue_event_and_following_visuals(
             queue.push(command);
         }
         if !should_continue {
-            break;
+            return matches!(event, VmEvent::Menu { .. });
         }
         let Ok(next) = story.continue_story() else {
-            break;
+            return false;
         };
         event = next;
     }

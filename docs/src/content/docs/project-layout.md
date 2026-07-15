@@ -2,7 +2,7 @@
 title: Project Layout
 ---
 
-`vn_cli new my-game` creates this shape:
+`vn new my-game` creates this shape:
 
 ```text
 vinyl.toml

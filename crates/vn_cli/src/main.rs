@@ -63,6 +63,8 @@ enum Command {
         project: PathBuf,
         #[arg(long)]
         locale: Option<String>,
+        #[arg(long, hide = true)]
+        visual_test_output: Option<PathBuf>,
     },
     /// Run deterministic headless VM verification.
     Smoke {
@@ -83,7 +85,11 @@ fn main() -> Result<()> {
         Command::DumpIr { project } => dump_ir(project),
         Command::ListAssets { project } => list_assets(project),
         Command::ExtractLocales { project } => extract_locales(project),
-        Command::Run { project, locale } => run(project, locale),
+        Command::Run {
+            project,
+            locale,
+            visual_test_output,
+        } => run(project, locale, visual_test_output),
         Command::Smoke { project, locale } => smoke(project, locale),
     }
 }
@@ -170,7 +176,11 @@ fn extract_locales(project: PathBuf) -> Result<()> {
 }
 
 #[cfg(feature = "desktop")]
-fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
+fn run(
+    project: PathBuf,
+    locale: Option<String>,
+    visual_test_output: Option<PathBuf>,
+) -> Result<()> {
     let loaded = load_validated_project(&project, locale.as_deref())?;
     let active_locale = locale.unwrap_or_else(|| loaded.manifest.project.default_locale.clone());
     vn_bevy::run_player(vn_bevy::PlayerConfig {
@@ -182,12 +192,17 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         project_version: loaded.manifest.project.version,
         script_hash: loaded.script_hash,
         engine_version: env!("CARGO_PKG_VERSION").to_string(),
+        visual_test: visual_test_output.map(|output| vn_bevy::VisualTestConfig { output }),
     })?;
     Ok(())
 }
 
 #[cfg(not(feature = "desktop"))]
-fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
+fn run(
+    project: PathBuf,
+    locale: Option<String>,
+    _visual_test_output: Option<PathBuf>,
+) -> Result<()> {
     let _ = load_validated_project(&project, locale.as_deref())?;
     bail!("desktop player support is disabled in this build")
 }

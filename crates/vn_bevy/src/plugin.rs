@@ -1,5 +1,7 @@
 use crate::camera::spawn_camera;
-use crate::input::{MenuFocus, apply_pending_choice, keyboard_advance_story, rollback_story};
+use crate::input::{
+    MenuClickGuard, MenuFocus, apply_pending_choice, keyboard_advance_story, rollback_story,
+};
 use crate::render::{fit_loaded_sprites, sync_render_entities, tick_transition_alpha};
 use crate::resources::{AssetLoadingState, PresentationCommandQueue, VnPresentation, VnRenderable};
 use crate::systems::{apply_queued_commands, sync_presentation_entities, tick_text_reveal};
@@ -14,6 +16,7 @@ impl Plugin for VnBevyPlugin {
             .init_resource::<PresentationCommandQueue>()
             .init_resource::<AssetLoadingState>()
             .init_resource::<MenuFocus>()
+            .init_resource::<MenuClickGuard>()
             .init_resource::<VnRenderable>()
             .init_resource::<Time>()
             .add_systems(Startup, spawn_camera)
