@@ -11,7 +11,7 @@ Download `vn`, make a project, write `.vn` scripts, add assets, then check and r
 
 ## Status
 
-MVP engine and CLI tooling are in progress. Currently included:
+Vinyl currently provides a desktop MVP for Linux, macOS, and Windows:
 
 - Indentation-based `.vn` script language.
 - Project manifest via `vinyl.toml`.
@@ -27,46 +27,44 @@ MVP engine and CLI tooling are in progress. Currently included:
 
 ## Install
 
-### Normal install for game developers
+Download the binary for your OS from the [latest release](https://github.com/SyahrulBhudiF/Vinyl/releases/latest). Rust is not required.
 
-Download a binary from the latest GitHub Release:
+### Linux
 
-<https://github.com/SyahrulBhudiF/Vinyl/releases/latest>
-
-Pick the file for your OS:
-
-- Linux: `vn-linux-x86_64`
-- macOS: `vn-macos-aarch64`
-- Windows: `vn-windows-x86_64.exe`
-
-Rename it to `vn` and place it somewhere in your PATH.
-
-Linux/macOS example:
+Vinyl uses X11 or XWayland. Install the common runtime libraries, then install the binary:
 
 ```bash
+# Ubuntu/Debian
+sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxrandr2
+
 chmod +x vn-linux-x86_64
-mv vn-linux-x86_64 vn
-./vn --help
-```
-
-Linux uses X11 or XWayland and requires ALSA, udev, X11, cursor, input, and RandR runtime libraries. Native Wayland and web builds are deferred.
-
-Windows example:
-
-1. Download `vn-windows-x86_64.exe`.
-2. Rename it to `vn.exe`.
-3. Move it to a folder, for example `C:\Tools\Vinyl\`.
-4. Add that folder to `Path`:
-   - Start menu → search “Environment Variables”.
-   - Open “Edit the system environment variables”.
-   - Click “Environment Variables…”.
-   - Under user variables, select `Path` → “Edit”.
-   - Add `C:\Tools\Vinyl\`.
-5. Open a new PowerShell window:
-
-```powershell
+sudo mv vn-linux-x86_64 /usr/local/bin/vn
 vn --help
 ```
+
+Native Wayland is not currently supported.
+
+### macOS
+
+```bash
+chmod +x vn-macos-aarch64
+sudo mv vn-macos-aarch64 /usr/local/bin/vn
+vn --help
+```
+
+If macOS blocks an unsigned download, allow it in **System Settings → Privacy & Security**. The current release target is Apple Silicon.
+
+### Windows
+
+In PowerShell, rename the download and move it somewhere permanent:
+
+```powershell
+New-Item -ItemType Directory -Force C:\Tools\Vinyl
+Move-Item .\vn-windows-x86_64.exe C:\Tools\Vinyl\vn.exe
+C:\Tools\Vinyl\vn.exe --help
+```
+
+Optionally add `C:\Tools\Vinyl` to your user `Path`, then use `vn` from any new terminal.
 
 ### Engine development install
 
@@ -79,12 +77,16 @@ cargo test --workspace
 
 ## Quickstart
 
-Create a new project:
+These commands are the same in Bash, macOS Terminal, and PowerShell:
 
 ```bash
 vn new my-game
 cd my-game
+vn check .
+vn run .
 ```
+
+`vn check` reports script, label, locale, and asset errors before the player opens. Every project must contain exactly one `label start`.
 
 `vn new` creates this structure:
 
@@ -270,73 +272,26 @@ vn fmt <project>
 
 Currently a parse/check placeholder. Full source rewriting is not implemented yet.
 
-## Documentation site
+## Documentation
 
-The docs site lives in `docs/` and uses Astro Starlight.
+The complete guide covers installation, authoring, CLI usage, player controls, saves, architecture, testing, releases, performance, and troubleshooting:
+
+<https://syahrulbhudif.github.io/Vinyl/>
+
+Build it locally with:
 
 ```bash
 cd docs
-npm install
-npm run dev
-npm run build
+pnpm install
+pnpm build
 ```
 
-## What are GitHub Actions for?
+## Workspace
 
-GitHub Actions are automation jobs that run on GitHub when code is pushed, a pull request is opened, or a release tag is created.
+- `vn_core`: AST, IR, compiler, deterministic VM, save model, rollback.
+- `vn_script`: project loader, parser, validator, manifest, localization, assets.
+- `vn_runtime`: renderer-independent presentation commands and save storage.
+- `vn_bevy`: desktop rendering, input, audio, player UI, visual testing.
+- `vn_cli`: internal crate that builds the public `vn` executable.
 
-This repo uses them for two things:
-
-### 1. CI quality gate
-
-File: `.github/workflows/ci.yml`
-
-CI runs:
-
-```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-cargo test --workspace --no-fail-fast --no-default-features
-cd docs && npm run build
-```
-
-Why it exists:
-
-- Check code formatting.
-- Run Rust lints.
-- Run automated tests.
-- Verify the docs site builds.
-- Prevent broken code from landing unnoticed.
-
-### 2. Automatic release binaries
-
-File: `.github/workflows/release.yml`
-
-When a version tag is pushed:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-GitHub builds `vn` for Linux, macOS, and Windows, then uploads the binaries to GitHub Releases.
-
-This is important because **game developers can download the CLI directly without installing Rust or running `cargo build`**.
-
-## Local development checks
-
-Before a large commit:
-
-```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-cargo test --workspace --no-fail-fast --no-default-features
-```
-
-## Workspace crates
-
-- `vn_core`: AST, IR, compiler, VM, save model.
-- `vn_script`: parser, validator, manifest, asset resolver, localization loader.
-- `vn_runtime`: presentation orchestration.
-- `vn_bevy`: Bevy renderer integration.
-- `vn_cli`: internal crate that builds the public `vn` player/CLI.
+See the architecture and development documentation for dependency boundaries, quality gates, and release packaging.

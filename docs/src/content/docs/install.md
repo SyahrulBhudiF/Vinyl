@@ -2,46 +2,71 @@
 title: Install Vinyl
 ---
 
-Vinyl ships as one desktop executable, `vn`, containing the player and writer tools.
+Vinyl ships as one executable named `vn`. It contains both the desktop player and project-authoring commands. Download it from the latest GitHub release; Rust is not required for game authors.
 
-## Install
+## Linux
 
-Download the release for your OS and put it on your `PATH`:
+### Requirements
 
-- Linux: `vn-linux-x86_64`
-- macOS: `vn-macos-aarch64`
-- Windows: `vn-windows-x86_64.exe`
+- x86-64 Linux
+- X11 or XWayland
+- ALSA, udev, X11, Xcursor, Xi, and Xrandr runtime libraries
 
-Linux requires X11 or XWayland plus the system ALSA, udev, X11, cursor, input, and RandR libraries. Native Wayland and web builds are not currently supported.
+Ubuntu or Debian:
 
 ```bash
-vn new my-game
-cd my-game
+sudo apt install libasound2 libudev1 libx11-6 libxcursor1 libxi6 libxrandr2
+chmod +x vn-linux-x86_64
+sudo mv vn-linux-x86_64 /usr/local/bin/vn
+vn --help
+```
+
+Release pages may also provide DEB and RPM packages. Native Wayland is not currently supported; use an X11 session or XWayland.
+
+## macOS
+
+The current release target is Apple Silicon:
+
+```bash
+chmod +x vn-macos-aarch64
+sudo mv vn-macos-aarch64 /usr/local/bin/vn
+vn --help
+```
+
+If macOS blocks the downloaded binary, allow it in **System Settings → Privacy & Security**.
+
+## Windows
+
+In PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force C:\Tools\Vinyl
+Move-Item .\vn-windows-x86_64.exe C:\Tools\Vinyl\vn.exe
+C:\Tools\Vinyl\vn.exe --help
+```
+
+Optionally add `C:\Tools\Vinyl` to the user `Path`, then open a new terminal and run `vn --help`.
+
+## Verify the installation
+
+```bash
+vn --help
+vn new hello-vinyl
+cd hello-vinyl
 vn check .
 vn run .
 ```
 
-## Main commands
+`vn check` must print `ok`. `vn run` validates the project before opening a window.
 
-- `vn check [project]`: parse and validate without opening a window.
-- `vn run [project]`: validate, then launch the desktop player.
-- `vn smoke [project]`: deterministic headless VM verification.
-- `vn extract-locales [project]`: print Fluent entries for script text IDs.
-- `vn list-assets [project]`: print referenced asset paths.
+## Engine development installation
 
-The project argument defaults to `.`. A project must contain exactly one `label start`.
+Only engine contributors need Rust and the docs toolchain:
 
-## Player controls
-
-- Space, Enter, or left click: complete the current effect, then advance.
-- Arrow keys, number keys, or mouse: select menu choices.
-- Page Up or mouse wheel up: rollback one interaction.
-- Escape: pause or return from an overlay.
-- F5 / F9: open Save / Load.
-- Alt+Enter: toggle borderless fullscreen.
-
-Each project has 12 manual slots and one autosave. Saves, rollback history, screenshots, and `preferences.json` live in the OS data directory for that project. Preferences are separate from save slots.
-
-The MVP supports PNG backgrounds/sprites and MP3 music. If no audio device exists, playback is disabled with a warning and the story continues. Music restarts after load or rollback. Player UI labels are English; locale selection affects game script content only.
-
-Rust is only needed when developing the engine itself.
+```bash
+cargo build
+cargo test --workspace
+cd docs
+pnpm install
+pnpm build
+```

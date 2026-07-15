@@ -2,13 +2,44 @@
 title: Vinyl
 ---
 
-Vinyl is a renderer-independent visual novel engine for Rust.
+Vinyl is a desktop visual-novel player and writer tool. Games are projects containing a manifest, indentation-based `.vn` scripts, PNG images, MP3 music, and optional Fluent translations.
 
 ## Start here
 
-- [Install Vinyl](/install/) — get the CLI and run a project.
-- [Editor Setup](/editor-setup/) — syntax highlighting and authoring setup.
-- [Project Layout](/project-layout/) — files and folders in a Vinyl game.
-- [Script Language](/script-language/) — `.vn` syntax reference.
-- [Localization](/localization/) — translate dialogue and text.
-- [Assets](/assets/) — backgrounds, characters, and audio.
+1. [Install Vinyl](/Vinyl/install/) for Linux, macOS, or Windows.
+2. [Create your first game](/Vinyl/quickstart/).
+3. Learn the [script language](/Vinyl/script-language/).
+4. Add [assets](/Vinyl/assets/) and [localization](/Vinyl/localization/).
+
+## Player features
+
+- 1280×720 logical canvas with resizable 16:9 presentation.
+- Dialogue, choices, typewriter text, fade, and dissolve transitions.
+- PNG backgrounds and sprites; MP3 music.
+- Pause, text speed, auto-advance, volume, mute, and fullscreen settings.
+- Twelve manual save slots, one autosave, screenshots, and up to 100 rollback checkpoints.
+- Deterministic headless smoke testing and Linux visual regression testing.
+
+## Documentation
+
+### Game authoring
+
+- [Quickstart](/Vinyl/quickstart/)
+- [Project layout and manifest](/Vinyl/project-layout/)
+- [Script language reference](/Vinyl/script-language/)
+- [Assets](/Vinyl/assets/)
+- [Localization](/Vinyl/localization/)
+- [Player controls and settings](/Vinyl/player/)
+- [CLI reference](/Vinyl/cli/)
+- [Troubleshooting](/Vinyl/troubleshooting/)
+
+### Engine development
+
+- [Architecture](/Vinyl/architecture/)
+- [Save and rollback model](/Vinyl/saves/)
+- [Testing and release process](/Vinyl/development/)
+- [Performance](/Vinyl/performance/)
+
+## Current platform scope
+
+Release targets are Linux x86-64 through X11/XWayland, macOS Apple Silicon, and Windows x86-64. Native Wayland and web builds are not currently supported. The default player interface is English; game content can use any configured locale supported by its bundled text and fonts.

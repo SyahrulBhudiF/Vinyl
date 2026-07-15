@@ -32,20 +32,38 @@ export default defineConfig({
       },
       sidebar: [
         {
-          label: 'Start',
+          label: 'Getting Started',
           items: [
             { label: 'Home', link: '/' },
             { label: 'Install', slug: 'install' },
+            { label: 'Quickstart', slug: 'quickstart' },
             { label: 'Editor Setup', slug: 'editor-setup' },
-            { label: 'Project Layout', slug: 'project-layout' },
           ],
         },
         {
-          label: 'Authoring',
+          label: 'Game Authoring',
           items: [
+            { label: 'Project Layout', slug: 'project-layout' },
             { label: 'Script Language', slug: 'script-language' },
-            { label: 'Localization', slug: 'localization' },
             { label: 'Assets', slug: 'assets' },
+            { label: 'Localization', slug: 'localization' },
+          ],
+        },
+        {
+          label: 'Player',
+          items: [
+            { label: 'Controls and Settings', slug: 'player' },
+            { label: 'Saves and Rollback', slug: 'saves' },
+            { label: 'CLI Reference', slug: 'cli' },
+            { label: 'Troubleshooting', slug: 'troubleshooting' },
+          ],
+        },
+        {
+          label: 'Engine',
+          items: [
+            { label: 'Architecture', slug: 'architecture' },
+            { label: 'Development and Releases', slug: 'development' },
+            { label: 'Performance', slug: 'performance' },
           ],
         },
       ],
