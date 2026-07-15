@@ -44,6 +44,96 @@ fn multi_file_project_starts_at_start_label_not_first_file() {
 }
 
 #[test]
+fn nested_multi_file_project_resolves_cross_file_flow() {
+    let dir = temp_project("nested_flow");
+    fs::create_dir_all(dir.join("script/chapters/deep")).unwrap();
+    fs::write(
+        dir.join("script/start.vn"),
+        r#"label start:
+    $trust = 1
+    jump chapter_two
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("script/chapters/choice.vn"),
+        r#"label chapter_two:
+    $trust += 2
+    if trust >= 3:
+        menu:
+            "Continue":
+                jump finale
+    else:
+        jump failure
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("script/chapters/deep/endings.vn"),
+        r#"label finale:
+    "Cross-file success."
+    end
+
+label failure:
+    "Cross-file failure."
+    end
+"#,
+    )
+    .unwrap();
+
+    let loaded = load_project(&dir).unwrap();
+    vn_script::validate(&loaded.script, &dir).unwrap();
+    assert_eq!(loaded.script.statements.len(), 12);
+
+    let mut vm = Vm::new(compile(&loaded.script)).unwrap();
+    assert_eq!(
+        vm.continue_until_interaction().unwrap(),
+        VmEvent::Menu {
+            choices: vec!["Continue".to_string()]
+        }
+    );
+    assert!(matches!(
+        vm.choose(0),
+        Ok(VmEvent::Dialogue { ref text, .. }) if text == "Cross-file success."
+    ));
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn loads_many_script_files_in_stable_recursive_path_order() {
+    let dir = temp_project("many_files");
+    for index in 0..128 {
+        let chapter = dir.join(format!("script/chapter-{}/", index / 16));
+        fs::create_dir_all(&chapter).unwrap();
+        fs::write(
+            chapter.join(format!("scene-{index:03}.vn")),
+            format!("label scene_{index}:\n    \"Scene {index}\"\n"),
+        )
+        .unwrap();
+    }
+    fs::write(
+        dir.join("script/chapter-0/scene-000.vn"),
+        "label start:\n    jump scene_127\n",
+    )
+    .unwrap();
+
+    let first = load_project(&dir).unwrap();
+    let second = load_project(&dir).unwrap();
+    vn_script::validate(&first.script, &dir).unwrap();
+    assert_eq!(first.script_hash, second.script_hash);
+    assert_eq!(first.script.statements.len(), 256);
+
+    let mut vm = Vm::new(compile(&first.script)).unwrap();
+    assert!(matches!(
+        vm.continue_until_interaction(),
+        Ok(VmEvent::Dialogue { ref text, .. }) if text == "Scene 127"
+    ));
+
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
 fn hash_changes_when_script_content_changes() {
     let dir = temp_project("content_hash");
     fs::create_dir_all(dir.join("script")).unwrap();

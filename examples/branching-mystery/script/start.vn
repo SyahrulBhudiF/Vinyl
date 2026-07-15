@@ -1,0 +1,20 @@
+label start:
+    scene bg room with fade(duration=0.5)
+    show eileen happy at center with dissolve(duration=0.4)
+    play music "theme.mp3"
+    $affection = 1
+    $has_key = false
+    eileen [intro-welcome] "You made it before the storm." with typewriter(speed=38)
+
+    menu:
+        [intro-search] "Search the room":
+            $has_key = true
+            $affection += 2
+            eileen [intro-key] "That key opens the cabinet."
+            jump cabinet
+        [intro-ask] "Ask Eileen for help":
+            $affection += 1
+            eileen [intro-trust] "I was hoping you would trust me."
+            jump cabinet
+        [intro-leave] "Leave before the storm":
+            jump early_exit

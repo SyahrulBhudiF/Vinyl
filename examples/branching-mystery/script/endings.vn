@@ -1,0 +1,14 @@
+label ending:
+    if affection >= 3:
+        hide eileen
+        "You leave with the truth and her trust."
+    else:
+        "You found the truth, but not her trust."
+    stop music
+    end
+
+label early_exit:
+    hide eileen
+    stop music
+    "You leave the mystery for another night."
+    end

@@ -1,0 +1,12 @@
+intro-welcome = Kamu tiba sebelum badai datang.
+intro-search = Periksa ruangan
+intro-key = Kunci itu membuka lemari.
+intro-ask = Minta bantuan Eileen
+intro-trust = Aku berharap kamu akan memercayaiku.
+intro-leave = Pergi sebelum badai
+cabinet-ready = Kita punya kuncinya, dan aku tahu kombinasinya.
+cabinet-closed = Lemarinya masih terkunci.
+cabinet-open = Buka lemari
+cabinet-listen = Dengarkan Eileen
+cabinet-story = Keluargaku menyembunyikan surat itu di sini bertahun-tahun lalu.
+cabinet-back = Menjauh

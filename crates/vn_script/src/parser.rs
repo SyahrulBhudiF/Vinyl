@@ -370,13 +370,22 @@ fn parse_text_effect(
     line: &Line,
     parser: &Parser,
 ) -> Result<(String, TextEffect), ParseError> {
-    let Some((quoted, effect)) = text.rsplit_once(" with ") else {
-        return Ok((parse_quoted(text, line, parser)?, TextEffect::Instant));
+    let Some(closing_quote) = text.rfind('"') else {
+        return Err(parser.error(line, "unterminated string"));
     };
-    Ok((
-        parse_quoted(quoted.trim(), line, parser)?,
-        parse_effect(effect.trim(), line, parser)?,
-    ))
+    let (quoted, tail) = text.split_at(closing_quote + 1);
+    let tail = tail.trim();
+    let effect = if tail.is_empty() {
+        TextEffect::Instant
+    } else {
+        parse_effect(
+            tail.strip_prefix("with ")
+                .ok_or_else(|| parser.error(line, "unexpected text after string"))?,
+            line,
+            parser,
+        )?
+    };
+    Ok((parse_quoted(quoted, line, parser)?, effect))
 }
 
 fn parse_transition(text: &str, line: &Line, parser: &Parser) -> Result<Transition, ParseError> {

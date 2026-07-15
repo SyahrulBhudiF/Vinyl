@@ -14,7 +14,7 @@ label start:
     end
 ```
 
-Other labels can live in any loaded `.vn` file.
+Other labels can live in any loaded `.vn` file, including nested script directories. Jumps resolve across file boundaries after the project is combined and validated.
 
 ## Dialogue and narration
 
@@ -172,3 +172,5 @@ label ending:
     stop music
     end
 ```
+
+For a runnable project using variables, conditions, conditional choices, multiple endings, assets, and two locales, see the [Complete Example Game](/Vinyl/example-game/).

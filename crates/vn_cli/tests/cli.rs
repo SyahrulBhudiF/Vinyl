@@ -36,6 +36,50 @@ fn smoke_fixture_project_through_menu_save_and_rollback() {
 }
 
 #[test]
+fn complex_example_validates_and_smokes_in_both_locales() {
+    for locale in ["en-US", "id-ID"] {
+        let check = Command::new(env!("CARGO_BIN_EXE_vn"))
+            .args([
+                "check",
+                "--locale",
+                locale,
+                "../../examples/branching-mystery",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            check.status.success(),
+            "{}",
+            String::from_utf8_lossy(&check.stderr)
+        );
+
+        let smoke = Command::new(env!("CARGO_BIN_EXE_vn"))
+            .args([
+                "smoke",
+                "--locale",
+                locale,
+                "../../examples/branching-mystery",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            smoke.status.success(),
+            "{}",
+            String::from_utf8_lossy(&smoke.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&smoke.stdout);
+        assert!(stdout.contains("scene:bg room"));
+        assert!(stdout.contains("menu:"));
+        assert!(stdout.contains(if locale == "en-US" {
+            "say:eileen:That key opens the cabinet."
+        } else {
+            "say:eileen:Kunci itu membuka lemari."
+        }));
+        assert!(stdout.contains("rollback:menu:"));
+    }
+}
+
+#[test]
 fn new_creates_writer_ready_project() {
     let root = temp_project("new_project");
     let _ = fs::remove_dir_all(&root);

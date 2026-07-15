@@ -9,7 +9,8 @@ Vinyl is a desktop visual-novel player and writer tool. Games are projects conta
 1. [Install Vinyl](/Vinyl/install/) for Linux, macOS, or Windows.
 2. [Create your first game](/Vinyl/quickstart/).
 3. Learn the [script language](/Vinyl/script-language/).
-4. Add [assets](/Vinyl/assets/) and [localization](/Vinyl/localization/).
+4. Explore the tested [complete example game](/Vinyl/example-game/).
+5. Add [assets](/Vinyl/assets/) and [localization](/Vinyl/localization/).
 
 ## Player features
 
@@ -27,6 +28,7 @@ Vinyl is a desktop visual-novel player and writer tool. Games are projects conta
 - [Quickstart](/Vinyl/quickstart/)
 - [Project layout and manifest](/Vinyl/project-layout/)
 - [Script language reference](/Vinyl/script-language/)
+- [Complete example game](/Vinyl/example-game/)
 - [Assets](/Vinyl/assets/)
 - [Localization](/Vinyl/localization/)
 - [Player controls and settings](/Vinyl/player/)

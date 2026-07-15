@@ -1,0 +1,16 @@
+label cabinet:
+    if has_key == true and affection >= 3:
+        eileen [cabinet-ready] "We have the key, and I know the combination."
+    else:
+        eileen [cabinet-closed] "The cabinet is still locked."
+
+    menu:
+        [cabinet-open] "Open the cabinet" if has_key == true:
+            "Inside is a letter addressed to both of you."
+            jump ending
+        [cabinet-listen] "Listen to Eileen":
+            $affection += 2
+            eileen [cabinet-story] "My family hid the letter here years ago."
+            jump ending
+        [cabinet-back] "Step away":
+            jump early_exit

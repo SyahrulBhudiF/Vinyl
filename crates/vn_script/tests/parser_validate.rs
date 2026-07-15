@@ -17,6 +17,48 @@ const MVP: &str = r#"label start:
 "#;
 
 #[test]
+fn narration_may_contain_spaces() {
+    let script = parse_source(
+        "narration.vn",
+        "label start:\n    \"You leave with the truth and her trust.\"\n",
+    )
+    .unwrap();
+
+    assert!(matches!(
+        &script.statements[1].kind,
+        StmtKind::Say { speaker: None, text, .. } if text == "You leave with the truth and her trust."
+    ));
+}
+
+#[test]
+fn parses_deeply_nested_story_blocks() {
+    let script = parse_source(
+        "deep.vn",
+        r#"label start:
+    $trust = 3
+    if trust >= 3:
+        menu:
+            "Open the door" if trust == 3:
+                if not locked:
+                    menu:
+                        "Enter":
+                            "The path is open."
+                            end
+                else:
+                    "The door is locked."
+                    end
+    else:
+        "You turn back."
+        end
+"#,
+    )
+    .unwrap();
+
+    assert_eq!(script.statements.len(), 3);
+    assert!(matches!(script.statements[2].kind, StmtKind::If { .. }));
+}
+
+#[test]
 fn parses_mvp_script() {
     let script = parse_source("test.vn", MVP).unwrap();
     assert_eq!(script.statements.len(), 5);

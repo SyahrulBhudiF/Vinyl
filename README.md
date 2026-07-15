@@ -272,9 +272,25 @@ vn fmt <project>
 
 Currently a parse/check placeholder. Full source rewriting is not implemented yet.
 
-## Performance measurements
+## Example project
 
-Vinyl does not publish a general speed or memory claim. The [performance page](https://syahrulbhudif.github.io/Vinyl/performance/) records exact commands, measured workloads, comparison results, and their limitations. Headless VM, serialization, memory, asset loading, and rendering results are reported separately.
+The repository includes [`examples/branching-mystery/`](examples/branching-mystery/), a tested multi-file game with cross-file jumps, nested script directories, branching choices, variables, conditions, multiple endings, transitions, music, and English/Indonesian localization.
+
+```bash
+vn check examples/branching-mystery
+vn smoke examples/branching-mystery
+vn run examples/branching-mystery
+```
+
+See the [complete example guide](https://syahrulbhudif.github.io/Vinyl/example-game/) for the full script and project layout.
+
+## Multi-file scripts and performance
+
+Vinyl recursively loads `.vn` files under the script directory. Labels and jumps work across files and nested directories; execution always begins at the project's single `label start`.
+
+The repository stress suite covers deeply nested blocks, cross-file execution, stable loading of 128 script files, and a manual release-mode parser probe. See [Performance](https://syahrulbhudif.github.io/Vinyl/performance/) for the workload, observed results, limitations, and reproduction command.
+
+Vinyl also loads assets on demand and retains up to 100 rollback checkpoints. Runtime behavior depends on script shape, history, asset dimensions, platform, and rendering backend.
 
 ## Documentation
 

@@ -45,6 +45,7 @@ export default defineConfig({
           items: [
             { label: 'Project Layout', slug: 'project-layout' },
             { label: 'Script Language', slug: 'script-language' },
+            { label: 'Complete Example Game', slug: 'example-game' },
             { label: 'Assets', slug: 'assets' },
             { label: 'Localization', slug: 'localization' },
           ],

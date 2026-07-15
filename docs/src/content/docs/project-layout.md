@@ -20,7 +20,7 @@ my-game/
     └── audio/
 ```
 
-Only `.vn` files under the configured script directory are loaded. Subdirectories are supported. Files are sorted by path before parsing, but execution always begins at `label start`, not at the first file.
+All `.vn` files under the configured script directory are loaded recursively. Files are sorted by path before parsing, then combined into one project script. Labels and jumps may cross file boundaries, but the complete project must still contain exactly one `label start`. Execution begins there, not in the first file by path.
 
 ## `vinyl.toml`
 
@@ -80,3 +80,5 @@ If `vinyl.toml` is absent, Vinyl uses the project directory name as its ID and t
 ## Script identity
 
 Vinyl hashes every loaded script path and its content. Saves are compatible only when their game ID, project version, script hash, and save schema match the running project.
+
+See [`examples/branching-mystery/`](https://github.com/SyahrulBhudiF/Vinyl/tree/main/examples/branching-mystery) or the [Complete Example Game](/Vinyl/example-game/) for a tested project containing scripts, assets, and two locales.

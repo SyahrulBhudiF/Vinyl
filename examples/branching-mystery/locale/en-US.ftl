@@ -1,0 +1,12 @@
+intro-welcome = You made it before the storm.
+intro-search = Search the room
+intro-key = That key opens the cabinet.
+intro-ask = Ask Eileen for help
+intro-trust = I was hoping you would trust me.
+intro-leave = Leave before the storm
+cabinet-ready = We have the key, and I know the combination.
+cabinet-closed = The cabinet is still locked.
+cabinet-open = Open the cabinet
+cabinet-listen = Listen to Eileen
+cabinet-story = My family hid the letter here years ago.
+cabinet-back = Step away

@@ -71,4 +71,4 @@ vn extract-locales .   # generate Fluent entries from text IDs
 vn smoke .             # deterministic headless story check
 ```
 
-Continue with [Project Layout](/Vinyl/project-layout/) and the [Script Language Reference](/Vinyl/script-language/).
+Continue with [Project Layout](/Vinyl/project-layout/), the [Script Language Reference](/Vinyl/script-language/), or the tested [Complete Example Game](/Vinyl/example-game/).
