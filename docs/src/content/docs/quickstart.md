@@ -9,7 +9,7 @@ vn new my-game
 cd my-game
 ```
 
-The generated project already contains `label start`, one dialogue line, one choice, and an English locale file.
+The generated project already contains `label start`, one dialogue line, one choice, and an English locale file. A Vinyl statement occupies one line; blocks use four spaces and begin after a line ending in `:`.
 
 ## Write the first scene
 
@@ -29,6 +29,17 @@ label start:
             "You leave the room."
             end
 ```
+
+What the script does:
+
+1. `label start:` declares the required entry point.
+2. `scene` displays `assets/bg/room.png` and clears existing sprites.
+3. `show` displays `assets/sprites/eileen/happy.png` at the center.
+4. `eileen` is the displayed speaker name; `[intro-hello]` is an optional localization ID.
+5. `menu:` pauses for a choice. Each choice owns its further-indented statements.
+6. `end` finishes the story.
+
+Keep the four-space indentation exactly as shown. Run `vn check .` if a block, quote, colon, label, asset, or locale entry is unclear.
 
 ## Add assets
 

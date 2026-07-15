@@ -101,7 +101,7 @@ my-game/
     ├── bg/             # backgrounds
     ├── sprites/        # character sprites
     │   └── eileen/
-    └── audio/          # music and sound effects
+    └── audio/          # MP3 music
 ```
 
 `locale/en-US.ftl` is a Fluent translation file. You do not download it separately; it is created by `vn new`. If you add text IDs in `.vn` files, run this to fill missing locale entries:
@@ -156,17 +156,39 @@ For development, open `editors/vscode-vinyl/` in VS Code and press `F5`.
 
 GitHub does not support custom TextMate grammars from a repository. `.vn` highlighting is handled by the editor extension, not by GitHub Linguist.
 
-## Example `.vn` script
+## Scripting essentials
 
-`script/start.vn`:
+Vinyl scripts are line-based UTF-8 `.vn` files. Use four spaces per block, exactly one project-wide `label start:`, quoted text, and spaces around expression operators. Run `vn check .` after editing.
 
 ```vn
 label start:
+    $has_key = false
     eileen [intro-hello] "Hello."
+
     menu:
-        [intro-continue] "Continue":
+        [intro-search] "Search the room":
+            $has_key = true
+            jump door
+        [intro-leave] "Leave":
             end
+
+label door:
+    if has_key == true:
+        "The door opens."
+    else:
+        "The door is locked."
+    end
 ```
+
+Key rules:
+
+- Dialogue: `speaker "Text"`; narration: `"Text"`.
+- Assign with `$score = 1`; read without `$`, as in `if score >= 1:`.
+- `label`, `if`, `else`, `menu`, and menu choices end with `:` and own an indented body.
+- Labels and jumps work across all `.vn` files under `script/`, including subdirectories.
+- Text IDs such as `[intro-hello]` are optional but recommended for localization and must be unique project-wide.
+
+Read the complete [Script Language Reference](https://syahrulbhudif.github.io/Vinyl/script-language/) for every statement, expression precedence, asset resolution, menu behavior, indentation examples, and common errors.
 
 Localization in `locale/en-US.ftl`:
 
@@ -202,7 +224,7 @@ Asset paths are resolved like this:
 ```text
 scene bg room                  -> assets/bg/room.png
 show eileen happy at center    -> assets/sprites/eileen/happy.png
-play music theme               -> assets/audio/theme.*
+play music "theme.mp3"         -> assets/audio/theme.mp3
 ```
 
 ## `vinyl.toml`
