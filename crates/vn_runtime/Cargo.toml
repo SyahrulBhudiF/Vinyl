@@ -6,8 +6,10 @@ version.workspace = true
 
 [dependencies]
 serde.workspace = true
+serde_json.workspace = true
 vn_core = { path = "../vn_core" }
 vn_script = { path = "../vn_script" }
 
 [dev-dependencies]
+soa-rs.workspace = true
 toml.workspace = true

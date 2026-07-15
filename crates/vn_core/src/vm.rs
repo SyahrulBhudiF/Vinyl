@@ -1,7 +1,8 @@
 use crate::ast::{AssignOp, BinaryOp, Expr, TextEffect, Transition, UnaryOp, Value};
 use crate::ir::{MenuChoice, OpId, OpKind, Program};
-use crate::save::{DialogueSnapshot, PresentationSnapshot, SpriteSnapshot};
+use crate::save::{DialogueSnapshot, PresentationSnapshot, RollbackCheckpoint, SpriteSnapshot};
 use serde::{Deserialize, Serialize};
+use soa_rs::Soa;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -67,11 +68,14 @@ pub enum VmError {
     UnknownVariable { name: String },
 }
 
+/// Maximum number of interaction checkpoints retained for rollback.
+const MAX_ROLLBACK_CHECKPOINTS: usize = 100;
+
 /// Deterministic story virtual machine.
 pub struct Vm {
     program: Program,
     state: VmState,
-    rollback: Vec<(VmState, PresentationSnapshot)>,
+    rollback: Soa<RollbackCheckpoint>,
     presentation: PresentationSnapshot,
     translations: HashMap<String, String>,
 }
@@ -90,7 +94,7 @@ impl Vm {
                 pc,
                 ..Default::default()
             },
-            rollback: Vec::new(),
+            rollback: Soa::new(),
             presentation: PresentationSnapshot::default(),
             translations: HashMap::new(),
         })
@@ -111,16 +115,17 @@ impl Vm {
         self.translations = translations;
     }
 
-    /// Restores a VM from serialized state and presentation.
+    /// Restores a VM from serialized state, presentation, and rollback history.
     pub fn from_parts(
         program: Program,
         state: VmState,
         presentation: PresentationSnapshot,
+        rollback: Soa<RollbackCheckpoint>,
     ) -> Self {
         Self {
             program,
             state,
-            rollback: Vec::new(),
+            rollback,
             presentation,
             translations: HashMap::new(),
         }
@@ -134,6 +139,11 @@ impl Vm {
     /// Returns current presentation snapshot.
     pub fn presentation(&self) -> &PresentationSnapshot {
         &self.presentation
+    }
+
+    /// Returns rollback history for save serialization.
+    pub fn rollback_history(&self) -> &Soa<RollbackCheckpoint> {
+        &self.rollback
     }
 
     /// Advances until dialogue, menu, visual/audio event, or end.
@@ -271,15 +281,18 @@ impl Vm {
         self.state.pc = target;
         let event = self.continue_until_interaction()?;
         let _discard_choice_body_checkpoint = self.rollback.pop();
-        self.rollback.push((rollback_state, rollback_presentation));
+        self.push_checkpoint(RollbackCheckpoint {
+            vm: rollback_state,
+            presentation: rollback_presentation,
+        });
         Ok(event)
     }
 
     /// Restores the previous interaction checkpoint.
     pub fn rollback(&mut self) -> Option<VmEvent> {
-        let (state, presentation) = self.rollback.pop()?;
-        self.state = state;
-        self.presentation = presentation;
+        let checkpoint = self.rollback.pop()?;
+        self.state = checkpoint.vm;
+        self.presentation = checkpoint.presentation;
         if let Some(choices) = &self.presentation.menu {
             return Some(VmEvent::Menu {
                 choices: choices.clone(),
@@ -303,8 +316,17 @@ impl Vm {
     }
 
     fn checkpoint(&mut self) {
-        self.rollback
-            .push((self.state.clone(), self.presentation.clone()));
+        self.push_checkpoint(RollbackCheckpoint {
+            vm: self.state.clone(),
+            presentation: self.presentation.clone(),
+        });
+    }
+
+    fn push_checkpoint(&mut self, checkpoint: RollbackCheckpoint) {
+        if self.rollback.len() == MAX_ROLLBACK_CHECKPOINTS {
+            self.rollback.remove(0);
+        }
+        self.rollback.push(checkpoint);
     }
 
     fn visible_choices(&self, choices: &[MenuChoice]) -> Result<Vec<MenuChoice>, VmError> {

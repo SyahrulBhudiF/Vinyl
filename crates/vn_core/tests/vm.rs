@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use soa_rs::Soa;
 use vn_core::{
     AssignOp, BinaryOp, Choice, Expr, Script, SourcePos, Stmt, StmtKind, Value, Vm, VmEvent,
     compile,
@@ -108,7 +109,12 @@ fn vm_runs_menu_save_restore_and_rollback() {
     );
     let restored_state = vm.state().clone();
     let restored_presentation = vm.presentation().clone();
-    let mut restored = Vm::from_parts(program, restored_state, restored_presentation);
+    let mut restored = Vm::from_parts(
+        program,
+        restored_state,
+        restored_presentation,
+        vm.rollback_history().clone(),
+    );
     assert_eq!(
         restored.choose(0),
         Ok(VmEvent::Dialogue {
@@ -121,6 +127,53 @@ fn vm_runs_menu_save_restore_and_rollback() {
         restored.rollback(),
         Some(VmEvent::Menu {
             choices: vec!["Continue".to_string()]
+        })
+    );
+}
+
+fn dialogue_script(count: usize) -> Script {
+    let mut statements = vec![Stmt {
+        kind: StmtKind::Label {
+            name: "start".to_string(),
+        },
+        pos: pos(),
+    }];
+    statements.extend((0..count).map(|index| Stmt {
+        kind: StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: index.to_string(),
+            effect: vn_core::TextEffect::Instant,
+        },
+        pos: pos(),
+    }));
+    Script { statements }
+}
+
+#[test]
+fn rollback_history_persists_and_evicts_the_oldest_checkpoint() {
+    let program = compile(&dialogue_script(102));
+    let mut vm = Vm::new(program.clone()).unwrap();
+    for _ in 0..102 {
+        vm.continue_until_interaction().unwrap();
+    }
+    assert_eq!(vm.rollback_history().len(), 100);
+    assert_eq!(vm.rollback_history().vm()[0].pc, 2);
+
+    let json = serde_json::to_string(vm.rollback_history()).unwrap();
+    let rollback = serde_json::from_str(&json).unwrap();
+    let mut restored = Vm::from_parts(
+        program,
+        vm.state().clone(),
+        vm.presentation().clone(),
+        rollback,
+    );
+    assert_eq!(
+        restored.rollback(),
+        Some(VmEvent::Dialogue {
+            speaker: None,
+            text: "100".to_string(),
+            effect: vn_core::TextEffect::Instant,
         })
     );
 }
@@ -170,7 +223,12 @@ fn vm_starts_at_start_label_and_restore_keeps_saved_pc() {
         vm.continue_until_interaction(),
         Ok(VmEvent::Dialogue { ref text, .. }) if text == "start"
     ));
-    let mut restored = Vm::from_parts(program, vm.state().clone(), vm.presentation().clone());
+    let mut restored = Vm::from_parts(
+        program,
+        vm.state().clone(),
+        vm.presentation().clone(),
+        Soa::new(),
+    );
     assert!(matches!(
         restored.continue_until_interaction(),
         Ok(VmEvent::Dialogue { ref text, .. }) if text == "saved"

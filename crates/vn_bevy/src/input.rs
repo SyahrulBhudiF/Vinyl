@@ -1,9 +1,11 @@
-use crate::components::TextReveal;
+use crate::components::{PresentationMusic, TextReveal};
 use crate::driver::VnStory;
+#[cfg(feature = "desktop")]
+use crate::player::PlayerMode;
 use crate::render::{TransitionQueryItem, complete_transitions};
-use crate::resources::{AssetLoadingState, PresentationCommandQueue};
+use crate::resources::{AssetLoadingState, PresentationCommandQueue, VnPresentation};
 use bevy::ecs::system::SystemParam;
-use bevy::input::ButtonInput;
+use bevy::input::{ButtonInput, mouse::MouseWheel};
 use bevy::prelude::*;
 use vn_core::VmEvent;
 use vn_runtime::commands_from_event;
@@ -11,6 +13,10 @@ use vn_runtime::commands_from_event;
 /// Menu choice requested by UI/input code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Resource)]
 pub struct PendingChoice(pub usize);
+
+/// Rollback requested by player UI.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Resource)]
+pub struct PendingRollback;
 
 /// Keyboard-focused menu choice.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Resource)]
@@ -23,6 +29,8 @@ pub struct AdvanceInput<'w, 's> {
     story: Option<ResMut<'w, VnStory>>,
     queue: ResMut<'w, PresentationCommandQueue>,
     loading: Res<'w, AssetLoadingState>,
+    #[cfg(feature = "desktop")]
+    mode: Option<Res<'w, PlayerMode>>,
     focus: ResMut<'w, MenuFocus>,
     transitions: Query<'w, 's, TransitionQueryItem<'static>>,
     reveals: Query<'w, 's, Entity, With<TextReveal>>,
@@ -36,11 +44,19 @@ pub fn keyboard_advance_story(mut commands: Commands, input: AdvanceInput) {
         story,
         mut queue,
         loading,
+        #[cfg(feature = "desktop")]
+        mode,
         mut focus,
         transitions,
         reveals,
     } = input;
-    if loading.started_at.is_some() || loading.error.is_some() {
+    if loading.started_at.is_some()
+        || loading.error.is_some()
+        || !player_accepts_story_input(
+            #[cfg(feature = "desktop")]
+            mode,
+        )
+    {
         return;
     }
     let key_advance = keys
@@ -121,6 +137,81 @@ pub fn apply_pending_choice(
     };
     if let Ok(event) = story.choose(choice) {
         queue_event_and_following_visuals(&mut story, &mut queue, event);
+    }
+}
+
+#[derive(SystemParam)]
+pub struct RollbackInput<'w, 's> {
+    keys: Option<Res<'w, ButtonInput<KeyCode>>>,
+    mouse_wheel: Option<MessageReader<'w, 's, MouseWheel>>,
+    pending: Option<Res<'w, PendingRollback>>,
+    story: Option<ResMut<'w, VnStory>>,
+    presentation: ResMut<'w, VnPresentation>,
+    queue: ResMut<'w, PresentationCommandQueue>,
+    loading: Res<'w, AssetLoadingState>,
+    #[cfg(feature = "desktop")]
+    mode: Option<Res<'w, PlayerMode>>,
+    transitions: Query<'w, 's, (), With<crate::components::TransitionAlpha>>,
+    music: Query<'w, 's, Entity, With<PresentationMusic>>,
+}
+
+/// Rolls back one stable interaction checkpoint with PageUp or mouse wheel up.
+pub fn rollback_story(mut commands: Commands, input: RollbackInput) {
+    let RollbackInput {
+        keys,
+        mouse_wheel,
+        pending,
+        story,
+        mut presentation,
+        mut queue,
+        loading,
+        #[cfg(feature = "desktop")]
+        mode,
+        transitions,
+        music,
+    } = input;
+    if loading.started_at.is_some()
+        || loading.error.is_some()
+        || (!player_accepts_story_input(
+            #[cfg(feature = "desktop")]
+            mode,
+        ) && pending.is_none())
+        || !transitions.is_empty()
+    {
+        return;
+    }
+    let page_up = keys
+        .as_deref()
+        .is_some_and(|keys| keys.just_pressed(KeyCode::PageUp));
+    let wheel_up = mouse_wheel.is_some_and(|mut events| events.read().any(|event| event.y > 0.0));
+    let ui_requested = pending.is_some();
+    if ui_requested {
+        commands.remove_resource::<PendingRollback>();
+    }
+    if !(page_up || wheel_up || ui_requested) {
+        return;
+    }
+    let Some(mut story) = story else {
+        return;
+    };
+    if story.rollback().is_some() {
+        queue.commands.clear();
+        presentation.snapshot = story.vm().presentation().clone();
+        presentation.pending_commands.clear();
+        for entity in &music {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn player_accepts_story_input(#[cfg(feature = "desktop")] mode: Option<Res<PlayerMode>>) -> bool {
+    #[cfg(feature = "desktop")]
+    {
+        mode.is_none_or(|mode| *mode == PlayerMode::Playing)
+    }
+    #[cfg(not(feature = "desktop"))]
+    {
+        true
     }
 }
 

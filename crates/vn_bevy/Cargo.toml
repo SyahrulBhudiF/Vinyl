@@ -14,11 +14,14 @@ bevy = { version = "0.17.3", default-features = false, features = [
     "png",
     "std",
 ] }
+chrono.workspace = true
 vn_core = { path = "../vn_core" }
 vn_runtime = { path = "../vn_runtime" }
 vn_script = { path = "../vn_script" }
 wasm-bindgen-futures = "0.4.70"
+image.workspace = true
 rodio = { version = "0.20", default-features = false, features = ["mp3"], optional = true }
+soa-rs.workspace = true
 
 [features]
 default = []

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use vn_core::{Program, Vm, VmError, VmEvent};
+use soa_rs::Soa;
+use vn_core::{PresentationSnapshot, Program, RollbackCheckpoint, Vm, VmError, VmEvent, VmState};
 
 /// Owns the deterministic story VM inside Bevy.
 #[derive(Resource)]
@@ -19,6 +20,23 @@ impl VnStory {
         })
     }
 
+    /// Restores a localized story driver from a save.
+    pub fn from_parts(
+        program: Program,
+        state: VmState,
+        presentation: PresentationSnapshot,
+        rollback: Soa<RollbackCheckpoint>,
+        translations: std::collections::HashMap<String, String>,
+    ) -> Self {
+        let mut vm = Vm::from_parts(program, state, presentation, rollback);
+        vm.set_translations(translations);
+        Self {
+            vm,
+            last_event: None,
+            last_error: None,
+        }
+    }
+
     /// Creates a localized story driver.
     pub fn with_translations(
         program: Program,
@@ -29,6 +47,11 @@ impl VnStory {
             last_event: None,
             last_error: None,
         })
+    }
+
+    /// Returns the underlying VM for save serialization.
+    pub fn vm(&self) -> &Vm {
+        &self.vm
     }
 
     /// Returns the latest successful VM event.
@@ -56,6 +79,26 @@ impl VnStory {
             }
         }
     }
+    /// Replaces this story with restored save state.
+    pub fn restore(
+        &mut self,
+        program: Program,
+        state: VmState,
+        presentation: PresentationSnapshot,
+        rollback: Soa<RollbackCheckpoint>,
+        translations: std::collections::HashMap<String, String>,
+    ) {
+        *self = Self::from_parts(program, state, presentation, rollback, translations);
+    }
+
+    /// Restores the previous interaction checkpoint.
+    pub fn rollback(&mut self) -> Option<VmEvent> {
+        let event = self.vm.rollback()?;
+        self.last_event = Some(event.clone());
+        self.last_error = None;
+        Some(event)
+    }
+
     /// Chooses a zero-based menu option.
     pub fn choose(&mut self, choice: usize) -> Result<VmEvent, VmError> {
         match self.vm.choose(choice) {

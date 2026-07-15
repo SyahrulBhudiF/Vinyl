@@ -3,8 +3,7 @@ use clap::{Parser, Subcommand};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use vn_core::{
-    CURRENT_SAVE_VERSION, Preferences, ProjectId, SaveFile, Stmt, StmtKind, Vm, VmEvent, compile,
-    validate_save,
+    CURRENT_SAVE_VERSION, ProjectId, SaveFile, Stmt, StmtKind, Vm, VmEvent, compile, validate_save,
 };
 use vn_runtime::{apply_command, commands_from_event};
 use vn_script::{
@@ -180,6 +179,7 @@ fn run(project: PathBuf, locale: Option<String>) -> Result<()> {
         program: compile(&loaded.script),
         translations: translations_for(&loaded.locales, &active_locale),
         project_id: ProjectId::from(loaded.manifest.project.id),
+        project_version: loaded.manifest.project.version,
         script_hash: loaded.script_hash,
         engine_version: env!("CARGO_PKG_VERSION").to_string(),
     })?;
@@ -215,10 +215,7 @@ fn smoke(project: PathBuf, locale: Option<String>) -> Result<()> {
                 script_hash: loaded.script_hash.clone(),
                 vm: vm.state().clone(),
                 presentation: vm.presentation().clone(),
-                preferences: Preferences {
-                    locale: Some(active_locale.clone()),
-                    ..Default::default()
-                },
+                rollback: vm.rollback_history().clone(),
                 screenshot_png: Vec::new(),
                 timestamp: 0,
             })?;
@@ -229,7 +226,7 @@ fn smoke(project: PathBuf, locale: Option<String>) -> Result<()> {
                 &loaded.manifest.project.version,
                 &loaded.script_hash,
             )?;
-            let mut restored = Vm::from_parts(program, save.vm, save.presentation);
+            let mut restored = Vm::from_parts(program, save.vm, save.presentation, save.rollback);
             restored.set_translations(translations_for(&loaded.locales, &active_locale));
             let next = restored.choose(0)?;
             for command in commands_from_event(&next) {

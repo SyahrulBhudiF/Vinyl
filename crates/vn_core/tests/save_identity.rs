@@ -1,6 +1,6 @@
+use soa_rs::Soa;
 use vn_core::{
-    CURRENT_SAVE_VERSION, Preferences, ProjectId, SaveFile, SaveValidationError, VmState,
-    validate_save,
+    CURRENT_SAVE_VERSION, ProjectId, SaveFile, SaveValidationError, VmState, validate_save,
 };
 
 fn save() -> SaveFile {
@@ -12,7 +12,7 @@ fn save() -> SaveFile {
         script_hash: "abc123".to_string(),
         vm: VmState::default(),
         presentation: Default::default(),
-        preferences: Preferences::default(),
+        rollback: Soa::new(),
         screenshot_png: Vec::new(),
         timestamp: 0,
     }

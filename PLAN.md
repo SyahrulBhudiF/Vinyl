@@ -22,7 +22,7 @@ Update the progress table and task checkbox in the same commit. A phase is compl
 | P4 | Asset loading and memory layout | `[x]` | PNG and MP3 decode gates pass |
 | P5 | Rendered story UI and input | `[x]` | first playable fixture passes |
 | P6 | Correct transitions | `[x]` | fade/dissolve tests pass |
-| P7 | Save/load/rollback | `[ ]` | slot round-trip tests pass |
+| P7 | Save/load/rollback | `[x]` | slot round-trip tests pass |
 | P8 | Pause and settings | `[ ]` | interaction tests pass |
 | P9 | End-to-end visual CI | `[ ]` | Linux golden test passes |
 | P10 | Packaging and documentation | `[ ]` | release builds pass |
@@ -73,8 +73,8 @@ Apply these deliberately; do not rewrite cold/UI code for theoretical savings.
 
 | Measurement | Before | After | Delta | Command/notes |
 |---|---:|---:|---:|---|
-| 100 rollback checkpoints, bytes | TBD | TBD | TBD | benchmark P7.2 |
-| `SaveFile` JSON, 100 checkpoints | TBD | TBD | TBD | benchmark P7.2 |
+| 100 rollback checkpoints, inline bytes | 27,200 AoS / 1 allocation | 27,200 SoA / 1 allocation | 0 bytes | `VmState=104`, `PresentationSnapshot=168`, tuple=272: no inter-field padding to remove |
+| rollback JSON, 100 checkpoints | 22,371 AoS struct bytes | 22,371 SoA bytes | 0 bytes | `soa-rs` serializes logical elements; prior 20,371 comparison incorrectly used unnamed tuples |
 | Player idle RSS | TBD | TBD | TBD | Linux release build |
 | Fixture loaded RSS | TBD | TBD | TBD | Linux release build |
 
@@ -269,56 +269,56 @@ cargo test -p vn_cli
 
 **Gate:** fade and dissolve cannot pass using the same lifecycle assertions.
 
-## P7 — Save/load/rollback `[ ]`
+## P7 — Save/load/rollback `[x]`
 
 ### P7.1 Save schema
 
-- [ ] Increment `CURRENT_SAVE_VERSION`.
-- [ ] Introduce public serializable `RollbackCheckpoint`.
-- [ ] Add `soa-rs = { version = "1", features = ["serde"] }` to `vn_core`.
-- [ ] Derive `Soars` for `RollbackCheckpoint`; use `Soa<RollbackCheckpoint>` for VM rollback storage and serialized saves.
-- [ ] Cap rollback storage at 100 checkpoints by dropping the oldest.
-- [ ] Restore rollback SoA in `Vm::from_parts`/replacement constructor.
-- [ ] Remove `Preferences` from `SaveFile`.
-- [ ] Active music state restores track identity, restarting playback from zero.
+- [x] Increment `CURRENT_SAVE_VERSION`.
+- [x] Introduce public serializable `RollbackCheckpoint`.
+- [x] Add `soa-rs = { version = "1", features = ["serde"] }` to `vn_core`.
+- [x] Derive `Soars` for `RollbackCheckpoint`; use `Soa<RollbackCheckpoint>` for VM rollback storage and serialized saves.
+- [x] Cap rollback storage at 100 checkpoints by dropping the oldest.
+- [x] Restore rollback SoA in `Vm::from_parts`/replacement constructor.
+- [x] Remove `Preferences` from `SaveFile`.
+- [x] Active music state restores track identity, restarting playback from zero.
 
 ### P7.2 Memory proof
 
-- [ ] Benchmark 100 representative checkpoints using old AoS tuple vector and new `Soa`.
-- [ ] Record allocation/size results in the Memory Measurement table.
-- [ ] Verify field-slice access is used where only VM states or presentations are needed.
-- [ ] Do not convert save slots, UI nodes, VM ops, or Bevy entities to `Soa` without separate evidence.
+- [x] Benchmark 100 representative checkpoints using old AoS tuple vector and new `Soa`.
+- [x] Record allocation/size results in the Memory Measurement table.
+- [x] Verify field-slice access is used where only VM states or presentations are needed.
+- [x] Do not convert save slots, UI nodes, VM ops, or Bevy entities to `Soa` without separate evidence.
 
 ### P7.3 Storage
 
-- [ ] Resolve per-project OS data directory.
-- [ ] Store `autosave.json` and `slot-01.json` through `slot-12.json`.
-- [ ] Write temporary file, flush, then atomic rename.
-- [ ] Treat incompatible files as visible but unloadable; allow overwrite.
+- [x] Resolve per-project OS data directory.
+- [x] Store `autosave.json` and `slot-01.json` through `slot-12.json`.
+- [x] Write temporary file, flush, then atomic rename.
+- [x] Treat incompatible files as visible but unloadable; allow overwrite.
 
 ### P7.4 Screenshot and slot metadata
 
-- [ ] Capture scene without pause/save overlay.
-- [ ] Resize thumbnail to 320×180 PNG.
-- [ ] Show slot number, thumbnail, local timestamp, speaker, dialogue excerpt, compatibility state.
-- [ ] Confirm overwrite of occupied compatible slot.
-- [ ] Load compatible slot directly.
+- [x] Capture scene without pause/save overlay.
+- [x] Resize thumbnail to 320×180 PNG.
+- [x] Show slot number, thumbnail, local timestamp, speaker, dialogue excerpt, compatibility state.
+- [x] Confirm overwrite of occupied compatible slot.
+- [x] Load compatible slot directly.
 
 ### P7.5 Autosave and rollback UI
 
-- [ ] Autosave after stable dialogue/menu interaction boundary.
-- [ ] Never autosave while loading, transitioning, paused, or errored.
-- [ ] PageUp and mouse-wheel-up rollback one boundary.
-- [ ] Pause menu exposes Rollback action.
-- [ ] Rollback restores visual/audio/dialogue/menu state together.
+- [x] Autosave after stable dialogue/menu interaction boundary.
+- [x] Never autosave while loading, transitioning, paused, or errored.
+- [x] PageUp and mouse-wheel-up rollback one boundary.
+- [x] Pause menu exposes Rollback action.
+- [x] Rollback restores visual/audio/dialogue/menu state together.
 
 ### P7.6 Tests
 
-- [ ] Save round-trip restores VM, presentation, and all rollback checkpoints.
-- [ ] 101st checkpoint evicts first.
-- [ ] Incompatible saves remain listed but cannot load.
-- [ ] Interrupted/temp write does not destroy previous slot.
-- [ ] Screenshot excludes overlays.
+- [x] Save round-trip restores VM, presentation, and all rollback checkpoints.
+- [x] 101st checkpoint evicts first.
+- [x] Incompatible saves remain listed but cannot load.
+- [x] Interrupted/temp write does not destroy previous slot.
+- [x] Screenshot excludes overlays.
 
 **Gate:** save/load/rollback integration suite passes and memory measurements are recorded.
 

@@ -20,7 +20,10 @@ pub use components::{
     PresentationSprite, TextReveal, TransitionAlpha, TransitionFlags, TransitionPhase,
 };
 pub use driver::VnStory;
-pub use input::{MenuFocus, PendingChoice, apply_pending_choice, keyboard_advance_story};
+pub use input::{
+    MenuFocus, PendingChoice, PendingRollback, apply_pending_choice, keyboard_advance_story,
+    rollback_story,
+};
 #[cfg(feature = "desktop")]
 pub use player::{PlayerConfig, PlayerFlags, PlayerMode, run_player};
 pub use plugin::VnBevyPlugin;

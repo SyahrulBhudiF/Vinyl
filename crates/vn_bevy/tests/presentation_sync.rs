@@ -375,6 +375,55 @@ fn first_advance_completes_transition_before_advancing_story() {
 }
 
 #[test]
+fn page_up_rolls_back_dialogue_and_presentation_together() {
+    let mut app = app_with_plugin();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    let mut story = VnStory::new(compile(&script(vec![
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "First".to_string(),
+            effect: TextEffect::Instant,
+        }),
+        stmt(StmtKind::Say {
+            speaker: None,
+            text_id: None,
+            text: "Second".to_string(),
+            effect: TextEffect::Instant,
+        }),
+    ])))
+    .unwrap();
+    for _ in 0..2 {
+        let event = story.continue_story().unwrap();
+        for command in vn_runtime::commands_from_event(&event) {
+            push(&mut app, command);
+        }
+        app.update();
+    }
+    app.insert_resource(story);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::PageUp);
+    app.update();
+
+    assert_eq!(
+        collect_dialogues(&mut app),
+        vec![(None, "First".to_string())]
+    );
+    assert_eq!(
+        app.world()
+            .resource::<VnStory>()
+            .vm()
+            .presentation()
+            .dialogue
+            .as_ref()
+            .unwrap()
+            .text,
+        "First"
+    );
+}
+
+#[test]
 fn first_advance_completes_typewriter_before_advancing_story() {
     let mut app = app_with_plugin();
     app.init_resource::<ButtonInput<KeyCode>>();

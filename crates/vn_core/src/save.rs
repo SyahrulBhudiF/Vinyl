@@ -1,5 +1,6 @@
 use crate::vm::VmState;
 use serde::{Deserialize, Serialize};
+use soa_rs::{SoaClone, Soars};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -43,8 +44,16 @@ impl From<&str> for ProjectId {
     }
 }
 
+/// Serializable interaction checkpoint used by rollback and saves.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, SoaClone, Soars)]
+#[soa_derive(Debug, Eq, PartialEq, include(Ref), Serialize)]
+pub struct RollbackCheckpoint {
+    pub vm: VmState,
+    pub presentation: PresentationSnapshot,
+}
+
 /// Current supported save schema version.
-pub const CURRENT_SAVE_VERSION: u32 = 1;
+pub const CURRENT_SAVE_VERSION: u32 = 2;
 
 /// Save file containing deterministic state only.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -56,7 +65,7 @@ pub struct SaveFile {
     pub script_hash: String,
     pub vm: VmState,
     pub presentation: PresentationSnapshot,
-    pub preferences: Preferences,
+    pub rollback: soa_rs::Soa<RollbackCheckpoint>,
     pub screenshot_png: Vec<u8>,
     pub timestamp: i64,
 }
