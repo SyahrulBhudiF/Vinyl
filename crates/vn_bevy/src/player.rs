@@ -3,12 +3,17 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bevy::asset::{AssetPlugin, RenderAssetUsages};
+#[cfg(feature = "audio")]
+use bevy::audio::{AudioSink, AudioSinkPlayback, Volume};
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
-use bevy::window::WindowResolution;
+use bevy::window::{PrimaryWindow, WindowMode, WindowResolution};
 use bevy::winit::{UpdateMode, WinitSettings};
-use vn_core::{CURRENT_SAVE_VERSION, Program, ProjectId, SaveFile, VmError, VmEvent};
-use vn_runtime::{SaveSlot, SaveSlotState, inspect_save, project_save_dir, write_save};
+use vn_core::{CURRENT_SAVE_VERSION, Preferences, Program, ProjectId, SaveFile, VmError, VmEvent};
+use vn_runtime::{
+    SaveSlot, SaveSlotState, inspect_save, project_save_dir, read_preferences, write_preferences,
+    write_save,
+};
 use vn_script::ProjectManifest;
 
 use crate::{
@@ -102,18 +107,27 @@ impl PlayerFlags {
 /// Validates VM construction, then runs the reusable desktop Bevy player.
 pub fn run_player(config: PlayerConfig) -> Result<(), VmError> {
     let story = VnStory::with_translations(config.program.clone(), config.translations.clone())?;
+    let save_directory = project_save_dir(&config.project_id.0).unwrap_or_else(|error| {
+        eprintln!("save directory unavailable: {error}");
+        config.project_root.join(".vinyl/saves")
+    });
+    let preferences = read_preferences(&save_directory)
+        .map(sanitize_preferences)
+        .unwrap_or_else(|error| {
+            eprintln!("preferences unavailable: {error}");
+            Preferences::default()
+        });
+    let fullscreen = preferences.fullscreen;
     let save_context = PlayerSaveContext {
         program: config.program,
         translations: config.translations,
-        directory: project_save_dir(&config.project_id.0).unwrap_or_else(|error| {
-            eprintln!("save directory unavailable: {error}");
-            config.project_root.join(".vinyl/saves")
-        }),
+        directory: save_directory.clone(),
         engine_version: config.engine_version,
         project_id: config.project_id.clone(),
         project_version: config.project_version,
         script_hash: config.script_hash,
         last_saved_pc: None,
+        quit_confirmed_pc: None,
     };
     let asset_root = config
         .project_root
@@ -125,7 +139,12 @@ pub fn run_player(config: PlayerConfig) -> Result<(), VmError> {
         .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.06)))
         .insert_resource(PlayerMode::Boot)
         .insert_resource(PlayerFlags::default())
+        .insert_resource(PlayerPreferences {
+            value: preferences,
+            directory: save_directory,
+        })
         .insert_resource(SaveLoadScreen::default())
+        .insert_resource(AutoAdvance::default())
         .insert_resource(save_context)
         .insert_resource(story)
         .insert_resource(VnAssetResolver::with_manifest(
@@ -148,6 +167,11 @@ pub fn run_player(config: PlayerConfig) -> Result<(), VmError> {
                         title: format!("Vinyl — {}", config.project_id.0),
                         resolution: WindowResolution::new(1280, 720),
                         resizable: true,
+                        mode: if fullscreen {
+                            WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+                        } else {
+                            WindowMode::Windowed
+                        },
                         ..default()
                     }),
                     ..default()
@@ -158,20 +182,48 @@ pub fn run_player(config: PlayerConfig) -> Result<(), VmError> {
         .add_systems(
             Update,
             (
+                pause_shortcuts,
+                pause_button_input,
+                settings_button_input,
                 save_load_shortcuts,
                 save_load_button_input,
                 sync_player_state,
                 autosave_story,
                 sync_story_ui,
+                sync_pause_ui,
+                sync_settings_ui,
                 sync_save_load_ui,
                 update_dialogue_text,
                 menu_button_input,
+                apply_text_speed,
+                auto_advance_story,
+                apply_audio_preferences,
                 runtime_error_quit,
             )
                 .chain(),
         )
         .run();
     Ok(())
+}
+
+#[derive(Resource)]
+struct PlayerPreferences {
+    value: Preferences,
+    directory: PathBuf,
+}
+
+impl PlayerPreferences {
+    fn persist(&self) {
+        if let Err(error) = write_preferences(&self.directory, &self.value) {
+            eprintln!("preferences save failed: {error}");
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+struct AutoAdvance {
+    dialogue_pc: Option<usize>,
+    elapsed_ms: u32,
 }
 
 #[derive(Resource)]
@@ -184,6 +236,7 @@ struct PlayerSaveContext {
     project_version: String,
     script_hash: String,
     last_saved_pc: Option<usize>,
+    quit_confirmed_pc: Option<usize>,
 }
 
 #[derive(Component)]
@@ -191,6 +244,39 @@ struct PlayerOverlay;
 
 #[derive(Component)]
 struct RuntimeErrorQuit;
+
+#[derive(Component)]
+struct PauseOverlay;
+
+#[derive(Component)]
+struct PauseAction(PlayerAction);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PlayerAction {
+    Resume,
+    Save,
+    Load,
+    Settings,
+    Rollback,
+    Quit,
+}
+
+#[derive(Component)]
+struct SettingsOverlay;
+
+#[derive(Component)]
+struct SettingsAction(SettingsActionKind);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SettingsActionKind {
+    TextSpeed,
+    AutoAdvance,
+    VolumeDown,
+    VolumeUp,
+    Mute,
+    Fullscreen,
+    Back,
+}
 
 #[derive(Component)]
 struct SaveLoadOverlay;
@@ -335,6 +421,346 @@ fn sync_story_ui(
                     ));
             }
         });
+}
+
+fn pause_shortcuts(
+    keys: Res<ButtonInput<KeyCode>>,
+    loading: Res<AssetLoadingState>,
+    mut mode: ResMut<PlayerMode>,
+    mut screen: ResMut<SaveLoadScreen>,
+    mut preferences: ResMut<PlayerPreferences>,
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
+) {
+    if keys.pressed(KeyCode::AltLeft) && keys.just_pressed(KeyCode::Enter) {
+        preferences.value.fullscreen = !preferences.value.fullscreen;
+        window.mode = if preferences.value.fullscreen {
+            WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+        } else {
+            WindowMode::Windowed
+        };
+        preferences.persist();
+        return;
+    }
+    if !keys.just_pressed(KeyCode::Escape) || loading.error.is_some() {
+        return;
+    }
+    match *mode {
+        PlayerMode::Playing => *mode = PlayerMode::Paused,
+        PlayerMode::Paused => *mode = PlayerMode::Playing,
+        PlayerMode::Save | PlayerMode::Load => {
+            screen.mode = None;
+            screen.confirm_overwrite = None;
+            *mode = PlayerMode::Paused;
+        }
+        PlayerMode::Settings => *mode = PlayerMode::Paused,
+        _ => {}
+    }
+}
+
+fn sync_pause_ui(
+    mut commands: Commands,
+    mode: Res<PlayerMode>,
+    save_context: Res<PlayerSaveContext>,
+    font: Res<PlayerFont>,
+    existing: Query<Entity, With<PauseOverlay>>,
+) {
+    if !mode.is_changed() && !save_context.is_changed() {
+        return;
+    }
+    for entity in &existing {
+        commands.entity(entity).despawn();
+    }
+    if *mode != PlayerMode::Paused {
+        return;
+    }
+    let font = font.0.clone();
+    commands
+        .spawn((
+            PauseOverlay,
+            Node {
+                position_type: PositionType::Absolute,
+                width: percent(100),
+                height: percent(100),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(12),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.015, 0.02, 0.035, 0.9)),
+            GlobalZIndex(80),
+        ))
+        .with_children(|overlay| {
+            overlay.spawn((
+                Text::new("Paused"),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 40.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+            for (action, label) in [
+                (PlayerAction::Resume, "Resume"),
+                (PlayerAction::Save, "Save"),
+                (PlayerAction::Load, "Load"),
+                (PlayerAction::Settings, "Settings"),
+                (PlayerAction::Rollback, "Rollback"),
+                (
+                    PlayerAction::Quit,
+                    if save_context.quit_confirmed_pc.is_some() {
+                        "Quit — press again to confirm"
+                    } else {
+                        "Quit"
+                    },
+                ),
+            ] {
+                overlay
+                    .spawn((
+                        PauseAction(action),
+                        Button,
+                        Node {
+                            width: px(260),
+                            padding: UiRect::axes(px(22), px(10)),
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.1, 0.14, 0.21)),
+                        BorderRadius::all(px(6)),
+                    ))
+                    .with_child((
+                        Text::new(label),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 22.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+            }
+        });
+}
+
+fn pause_button_input(
+    mut commands: Commands,
+    buttons: Query<(&Interaction, &PauseAction), Changed<Interaction>>,
+    story: Res<VnStory>,
+    mut mode: ResMut<PlayerMode>,
+    mut screen: ResMut<SaveLoadScreen>,
+    mut save_context: ResMut<PlayerSaveContext>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    for (interaction, action) in &buttons {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action.0 {
+            PlayerAction::Resume => {
+                save_context.quit_confirmed_pc = None;
+                *mode = PlayerMode::Playing;
+            }
+            PlayerAction::Save => {
+                screen.mode = Some(PlayerMode::Save);
+                *mode = PlayerMode::Save;
+            }
+            PlayerAction::Load => {
+                screen.mode = Some(PlayerMode::Load);
+                *mode = PlayerMode::Load;
+            }
+            PlayerAction::Settings => *mode = PlayerMode::Settings,
+            PlayerAction::Rollback => {
+                commands.insert_resource(PendingRollback);
+                *mode = PlayerMode::Playing;
+            }
+            PlayerAction::Quit => {
+                let pc = story.vm().state().pc;
+                if save_context.last_saved_pc == Some(pc)
+                    || save_context.quit_confirmed_pc == Some(pc)
+                {
+                    exit.write(AppExit::Success);
+                } else {
+                    save_context.quit_confirmed_pc = Some(pc);
+                }
+            }
+        }
+    }
+}
+
+fn sync_settings_ui(
+    mut commands: Commands,
+    mode: Res<PlayerMode>,
+    preferences: Res<PlayerPreferences>,
+    font: Res<PlayerFont>,
+    existing: Query<Entity, With<SettingsOverlay>>,
+) {
+    if !mode.is_changed() && !preferences.is_changed() {
+        return;
+    }
+    for entity in &existing {
+        commands.entity(entity).despawn();
+    }
+    if *mode != PlayerMode::Settings {
+        return;
+    }
+    let font = font.0.clone();
+    let labels = [
+        (
+            SettingsActionKind::TextSpeed,
+            format!(
+                "Text Speed: {}",
+                text_speed_name(preferences.value.text_speed)
+            ),
+        ),
+        (
+            SettingsActionKind::AutoAdvance,
+            format!(
+                "Auto Advance: {}",
+                if preferences.value.auto_advance {
+                    "On"
+                } else {
+                    "Off"
+                }
+            ),
+        ),
+        (SettingsActionKind::VolumeDown, "Music Volume −".to_string()),
+        (
+            SettingsActionKind::VolumeUp,
+            format!("Music Volume +  ({}%)", preferences.value.music_volume),
+        ),
+        (
+            SettingsActionKind::Mute,
+            format!(
+                "Mute: {}",
+                if preferences.value.muted { "On" } else { "Off" }
+            ),
+        ),
+        (
+            SettingsActionKind::Fullscreen,
+            format!(
+                "Fullscreen: {}",
+                if preferences.value.fullscreen {
+                    "On"
+                } else {
+                    "Off"
+                }
+            ),
+        ),
+        (SettingsActionKind::Back, "Back".to_string()),
+    ];
+    commands
+        .spawn((
+            SettingsOverlay,
+            Node {
+                position_type: PositionType::Absolute,
+                width: percent(100),
+                height: percent(100),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(12),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.015, 0.02, 0.035, 0.97)),
+            GlobalZIndex(90),
+        ))
+        .with_children(|overlay| {
+            overlay.spawn((
+                Text::new("Settings"),
+                TextFont {
+                    font: font.clone(),
+                    font_size: 40.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+            for (action, label) in labels {
+                overlay
+                    .spawn((
+                        SettingsAction(action),
+                        Button,
+                        Node {
+                            width: px(360),
+                            padding: UiRect::axes(px(20), px(10)),
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.1, 0.14, 0.21)),
+                        BorderRadius::all(px(6)),
+                    ))
+                    .with_child((
+                        Text::new(label),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 21.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+            }
+        });
+}
+
+fn settings_button_input(
+    buttons: Query<(&Interaction, &SettingsAction), Changed<Interaction>>,
+    mut mode: ResMut<PlayerMode>,
+    mut preferences: ResMut<PlayerPreferences>,
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
+) {
+    for (interaction, action) in &buttons {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        match action.0 {
+            SettingsActionKind::TextSpeed => {
+                preferences.value.text_speed = match preferences.value.text_speed {
+                    15 => 30,
+                    30 => 60,
+                    60 => u16::MAX,
+                    _ => 15,
+                };
+            }
+            SettingsActionKind::AutoAdvance => {
+                preferences.value.auto_advance = !preferences.value.auto_advance;
+            }
+            SettingsActionKind::VolumeDown => {
+                preferences.value.music_volume = preferences.value.music_volume.saturating_sub(10);
+            }
+            SettingsActionKind::VolumeUp => {
+                preferences.value.music_volume = (preferences.value.music_volume + 10).min(100);
+            }
+            SettingsActionKind::Mute => preferences.value.muted = !preferences.value.muted,
+            SettingsActionKind::Fullscreen => {
+                preferences.value.fullscreen = !preferences.value.fullscreen;
+                window.mode = if preferences.value.fullscreen {
+                    WindowMode::BorderlessFullscreen(MonitorSelection::Current)
+                } else {
+                    WindowMode::Windowed
+                };
+            }
+            SettingsActionKind::Back => {
+                *mode = PlayerMode::Paused;
+                continue;
+            }
+        }
+        preferences.persist();
+    }
+}
+
+fn sanitize_preferences(mut preferences: Preferences) -> Preferences {
+    if !matches!(preferences.text_speed, 15 | 30 | 60 | u16::MAX) {
+        preferences.text_speed = Preferences::default().text_speed;
+    }
+    preferences.music_volume = preferences.music_volume.min(100);
+    preferences
+}
+
+fn text_speed_name(speed: u16) -> &'static str {
+    match speed {
+        15 => "Slow",
+        30 => "Normal",
+        60 => "Fast",
+        _ => "Instant",
+    }
 }
 
 fn sync_save_load_ui(
@@ -611,6 +1037,96 @@ mod tests {
     }
 }
 
+fn apply_text_speed(preferences: Res<PlayerPreferences>, mut reveals: Query<&mut TextReveal>) {
+    for mut reveal in &mut reveals {
+        reveal.chars_per_second = preferences.value.text_speed;
+        if preferences.value.text_speed == u16::MAX {
+            reveal.elapsed_ms = u32::MAX;
+        }
+    }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct AutoAdvanceInput<'w, 's> {
+    time: Res<'w, Time>,
+    mode: Res<'w, PlayerMode>,
+    preferences: Res<'w, PlayerPreferences>,
+    loading: Res<'w, AssetLoadingState>,
+    transitions: Query<'w, 's, (), With<TransitionAlpha>>,
+    reveals: Query<'w, 's, (), With<TextReveal>>,
+    menu: Query<'w, 's, (), With<PresentationMenu>>,
+    story: ResMut<'w, VnStory>,
+    queue: ResMut<'w, PresentationCommandQueue>,
+    auto: ResMut<'w, AutoAdvance>,
+}
+
+fn auto_advance_story(input: AutoAdvanceInput) {
+    let AutoAdvanceInput {
+        time,
+        mode,
+        preferences,
+        loading,
+        transitions,
+        reveals,
+        menu,
+        mut story,
+        mut queue,
+        mut auto,
+    } = input;
+    if !preferences.value.auto_advance
+        || *mode != PlayerMode::Playing
+        || loading.started_at.is_some()
+        || loading.error.is_some()
+        || !transitions.is_empty()
+        || !reveals.is_empty()
+        || !menu.is_empty()
+    {
+        auto.dialogue_pc = None;
+        auto.elapsed_ms = 0;
+        return;
+    }
+    let Some(VmEvent::Dialogue { text, .. }) = story.last_event() else {
+        auto.dialogue_pc = None;
+        auto.elapsed_ms = 0;
+        return;
+    };
+    let pc = story.vm().state().pc;
+    if auto.dialogue_pc != Some(pc) {
+        auto.dialogue_pc = Some(pc);
+        auto.elapsed_ms = 0;
+    }
+    auto.elapsed_ms = auto
+        .elapsed_ms
+        .saturating_add(time.delta().as_millis().min(u128::from(u32::MAX)) as u32);
+    let wait_ms = 1_500u32.saturating_add(text.chars().count() as u32 * 45);
+    if auto.elapsed_ms < wait_ms {
+        return;
+    }
+    if let Ok(event) = story.continue_story() {
+        queue_event_and_following_visuals(&mut story, &mut queue, event);
+    }
+    auto.dialogue_pc = None;
+    auto.elapsed_ms = 0;
+}
+
+#[cfg(feature = "audio")]
+fn apply_audio_preferences(preferences: Res<PlayerPreferences>, mut sinks: Query<&mut AudioSink>) {
+    if !preferences.is_changed() {
+        return;
+    }
+    let volume = if preferences.value.muted {
+        Volume::SILENT
+    } else {
+        Volume::Linear(f32::from(preferences.value.music_volume) / 100.0)
+    };
+    for mut sink in &mut sinks {
+        sink.set_volume(volume);
+    }
+}
+
+#[cfg(not(feature = "audio"))]
+fn apply_audio_preferences() {}
+
 fn update_dialogue_text(
     dialogue: Query<(&PresentationDialogue, Option<&TextReveal>)>,
     mut text: Query<&mut Text, With<DialogueText>>,
@@ -648,7 +1164,6 @@ fn menu_button_input(
 fn sync_player_state(
     mut commands: Commands,
     loading: Res<AssetLoadingState>,
-    screen: Res<SaveLoadScreen>,
     font: Res<PlayerFont>,
     overlays: Query<Entity, With<PlayerOverlay>>,
     mut mode: ResMut<PlayerMode>,
@@ -661,8 +1176,11 @@ fn sync_player_state(
         PlayerMode::RuntimeError
     } else if loading.started_at.is_some() {
         PlayerMode::Loading
-    } else if let Some(screen_mode) = screen.mode {
-        screen_mode
+    } else if matches!(
+        *mode,
+        PlayerMode::Paused | PlayerMode::Save | PlayerMode::Load | PlayerMode::Settings
+    ) {
+        *mode
     } else if flags.ended() {
         PlayerMode::Ended
     } else {
@@ -754,6 +1272,7 @@ fn save_load_shortcuts(
     loading: Res<AssetLoadingState>,
     transitions: Query<(), With<TransitionAlpha>>,
     mut screen: ResMut<SaveLoadScreen>,
+    mut mode: ResMut<PlayerMode>,
 ) {
     if loading.started_at.is_some() || loading.error.is_some() || !transitions.is_empty() {
         return;
@@ -761,12 +1280,15 @@ fn save_load_shortcuts(
     if keys.just_pressed(KeyCode::F5) {
         screen.mode = Some(PlayerMode::Save);
         screen.confirm_overwrite = None;
+        *mode = PlayerMode::Save;
     } else if keys.just_pressed(KeyCode::F9) {
         screen.mode = Some(PlayerMode::Load);
         screen.confirm_overwrite = None;
+        *mode = PlayerMode::Load;
     } else if keys.just_pressed(KeyCode::Escape) && screen.mode.is_some() {
         screen.mode = None;
         screen.confirm_overwrite = None;
+        *mode = PlayerMode::Playing;
     }
 }
 
@@ -785,6 +1307,7 @@ struct SaveLoadButtonInput<'w, 's> {
     presentation: ResMut<'w, crate::VnPresentation>,
     queue: ResMut<'w, PresentationCommandQueue>,
     screen: ResMut<'w, SaveLoadScreen>,
+    mode: ResMut<'w, PlayerMode>,
     save_context: Res<'w, PlayerSaveContext>,
     music: Query<'w, 's, Entity, With<crate::components::PresentationMusic>>,
 }
@@ -796,6 +1319,7 @@ fn save_load_button_input(mut commands: Commands, input: SaveLoadButtonInput) {
         mut presentation,
         mut queue,
         mut screen,
+        mut mode,
         save_context,
         music,
     } = input;
@@ -806,12 +1330,14 @@ fn save_load_button_input(mut commands: Commands, input: SaveLoadButtonInput) {
         if back.is_some() {
             screen.mode = None;
             screen.confirm_overwrite = None;
+            *mode = PlayerMode::Playing;
             continue;
         }
         if rollback.is_some() {
             commands.insert_resource(PendingRollback);
             screen.mode = None;
             screen.confirm_overwrite = None;
+            *mode = PlayerMode::Playing;
             continue;
         }
         let Some(slot) = slot else {
@@ -838,6 +1364,7 @@ fn save_load_button_input(mut commands: Commands, input: SaveLoadButtonInput) {
                     save,
                 );
                 screen.mode = None;
+                *mode = PlayerMode::Playing;
             }
             Some(PlayerMode::Save) => {
                 let SaveSlot::Manual(number) = slot.0 else {
@@ -860,6 +1387,7 @@ fn save_load_button_input(mut commands: Commands, input: SaveLoadButtonInput) {
                 capture_save(&mut commands, save_file(&story, &save_context), slot.0);
                 screen.mode = None;
                 screen.confirm_overwrite = None;
+                *mode = PlayerMode::Playing;
             }
             _ => {}
         }
@@ -963,7 +1491,10 @@ fn autosave_story(
     }
     let save = save_file(&story, &save_context);
     match write_save(&save_context.directory, SaveSlot::Autosave, &save) {
-        Ok(_) => save_context.last_saved_pc = Some(pc),
+        Ok(_) => {
+            save_context.last_saved_pc = Some(pc);
+            save_context.quit_confirmed_pc = None;
+        }
         Err(error) => eprintln!("autosave failed: {error}"),
     }
 }

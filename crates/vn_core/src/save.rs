@@ -121,6 +121,9 @@ pub fn validate_save(
 pub struct Preferences {
     pub text_speed: u16,
     pub auto_advance: bool,
+    pub music_volume: u8,
+    pub muted: bool,
+    pub fullscreen: bool,
     pub locale: Option<String>,
 }
 
@@ -129,6 +132,9 @@ impl Default for Preferences {
         Self {
             text_speed: 30,
             auto_advance: false,
+            music_volume: 100,
+            muted: false,
+            fullscreen: false,
             locale: None,
         }
     }

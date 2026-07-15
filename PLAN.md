@@ -23,7 +23,7 @@ Update the progress table and task checkbox in the same commit. A phase is compl
 | P5 | Rendered story UI and input | `[x]` | first playable fixture passes |
 | P6 | Correct transitions | `[x]` | fade/dissolve tests pass |
 | P7 | Save/load/rollback | `[x]` | slot round-trip tests pass |
-| P8 | Pause and settings | `[ ]` | interaction tests pass |
+| P8 | Pause and settings | `[x]` | interaction tests pass |
 | P9 | End-to-end visual CI | `[ ]` | Linux golden test passes |
 | P10 | Packaging and documentation | `[ ]` | release builds pass |
 
@@ -322,29 +322,29 @@ cargo test -p vn_cli
 
 **Gate:** save/load/rollback integration suite passes and memory measurements are recorded.
 
-## P8 — Pause and settings `[ ]`
+## P8 — Pause and settings `[x]`
 
 ### P8.1 Pause overlay
 
-- [ ] Escape toggles pause/resume.
-- [ ] Actions: Resume, Save, Load, Settings, Rollback, Quit.
-- [ ] F5 opens Save; F9 opens Load.
-- [ ] Quit confirms only when progress is newer than last successful autosave.
+- [x] Escape toggles pause/resume.
+- [x] Actions: Resume, Save, Load, Settings, Rollback, Quit.
+- [x] F5 opens Save; F9 opens Load.
+- [x] Quit confirms only when progress is newer than last successful autosave.
 
 ### P8.2 Preferences
 
-- [ ] Persist per project outside save slots: text speed, auto-advance, music volume, mute, fullscreen.
-- [ ] Text speed choices: Slow, Normal, Fast, Instant.
-- [ ] One Music Volume control plus Mute; no speculative SFX/voice mixer.
-- [ ] Alt+Enter toggles fullscreen and persists it.
-- [ ] Loading a slot never changes preferences.
+- [x] Persist per project outside save slots: text speed, auto-advance, music volume, mute, fullscreen.
+- [x] Text speed choices: Slow, Normal, Fast, Instant.
+- [x] One Music Volume control plus Mute; no speculative SFX/voice mixer.
+- [x] Alt+Enter toggles fullscreen and persists it.
+- [x] Loading a slot never changes preferences.
 
 ### P8.3 Auto-advance
 
-- [ ] Start timer after typewriter completes.
-- [ ] Use minimum 1.5 seconds plus simple length-based reading time.
-- [ ] Manual input remains available.
-- [ ] Stop on menu, pause, loading, transition, error, or end.
+- [x] Start timer after typewriter completes.
+- [x] Use minimum 1.5 seconds plus simple length-based reading time.
+- [x] Manual input remains available.
+- [x] Stop on menu, pause, loading, transition, error, or end.
 
 **Gate:** keyboard/mouse interaction tests cover pause, settings persistence, and auto-advance stops.
 

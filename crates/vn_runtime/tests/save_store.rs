@@ -1,8 +1,11 @@
 use std::{fs, path::PathBuf};
 
 use soa_rs::Soa;
-use vn_core::{CURRENT_SAVE_VERSION, ProjectId, SaveFile, VmState};
-use vn_runtime::{SaveSlot, SaveSlotState, inspect_save, read_save, write_save};
+use vn_core::{CURRENT_SAVE_VERSION, Preferences, ProjectId, SaveFile, VmState};
+use vn_runtime::{
+    SaveSlot, SaveSlotState, inspect_save, read_preferences, read_save, write_preferences,
+    write_save,
+};
 
 fn directory(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("vinyl-save-store-{}-{name}", std::process::id()))
@@ -80,6 +83,30 @@ fn incompatible_and_corrupt_slots_remain_visible() {
         .unwrap(),
         SaveSlotState::Compatible(_)
     ));
+
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn preferences_live_beside_but_outside_save_slots() {
+    let directory = directory("preferences");
+    let _ = fs::remove_dir_all(&directory);
+    let preferences = Preferences {
+        text_speed: 60,
+        auto_advance: true,
+        music_volume: 40,
+        muted: true,
+        fullscreen: true,
+        locale: None,
+    };
+
+    assert_eq!(
+        read_preferences(&directory).unwrap(),
+        Preferences::default()
+    );
+    write_preferences(&directory, &preferences).unwrap();
+    assert_eq!(read_preferences(&directory).unwrap(), preferences);
+    assert!(!directory.join("slot-01.json").exists());
 
     fs::remove_dir_all(directory).unwrap();
 }

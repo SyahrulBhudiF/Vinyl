@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use vn_core::{ProjectId, SaveFile, SaveValidationError, validate_save};
+use vn_core::{Preferences, ProjectId, SaveFile, SaveValidationError, validate_save};
 
 /// A manual save slot or the single autosave slot.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -76,6 +76,31 @@ pub fn write_save(directory: &Path, slot: SaveSlot, save: &SaveFile) -> io::Resu
     }
     fs::rename(&temporary, &path)?;
     Ok(path)
+}
+
+/// Writes per-project preferences outside save slots.
+pub fn write_preferences(directory: &Path, preferences: &Preferences) -> io::Result<PathBuf> {
+    fs::create_dir_all(directory)?;
+    let path = directory.join("preferences.json");
+    let temporary = path.with_extension("json.tmp");
+    {
+        let file = File::create(&temporary)?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(&mut writer, preferences).map_err(io::Error::other)?;
+        writer.flush()?;
+        writer.get_ref().sync_all()?;
+    }
+    fs::rename(&temporary, &path)?;
+    Ok(path)
+}
+
+/// Reads per-project preferences, using defaults when no file exists.
+pub fn read_preferences(directory: &Path) -> io::Result<Preferences> {
+    match File::open(directory.join("preferences.json")) {
+        Ok(file) => serde_json::from_reader(BufReader::new(file)).map_err(io::Error::other),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Preferences::default()),
+        Err(error) => Err(error),
+    }
 }
 
 /// Reads a save slot without applying compatibility policy.
