@@ -272,9 +272,13 @@ vn fmt <project>
 
 Currently a parse/check placeholder. Full source rewriting is not implemented yet.
 
+## Performance measurements
+
+Vinyl does not publish a general speed or memory claim. The [performance page](https://syahrulbhudif.github.io/Vinyl/performance/) records exact commands, measured workloads, comparison results, and their limitations. Headless VM, serialization, memory, asset loading, and rendering results are reported separately.
+
 ## Documentation
 
-The complete guide covers installation, authoring, CLI usage, player controls, saves, architecture, testing, releases, performance, and troubleshooting:
+The complete guide covers installation, authoring, CLI usage, player controls, saves, architecture, testing, releases, measured performance, and troubleshooting:
 
 <https://syahrulbhudif.github.io/Vinyl/>
 

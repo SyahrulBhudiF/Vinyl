@@ -8,6 +8,7 @@ pub struct VnStory {
     vm: Vm,
     last_event: Option<VmEvent>,
     last_error: Option<VmError>,
+    revision: u64,
 }
 
 impl VnStory {
@@ -17,6 +18,7 @@ impl VnStory {
             vm: Vm::new(program)?,
             last_event: None,
             last_error: None,
+            revision: 0,
         })
     }
 
@@ -34,6 +36,7 @@ impl VnStory {
             vm,
             last_event: None,
             last_error: None,
+            revision: 0,
         }
     }
 
@@ -46,6 +49,7 @@ impl VnStory {
             vm: Vm::with_translations(program, translations)?,
             last_event: None,
             last_error: None,
+            revision: 0,
         })
     }
 
@@ -64,12 +68,21 @@ impl VnStory {
         self.last_error.as_ref()
     }
 
+    /// Returns the monotonic story-state revision used by persistence coordination.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// Returns whether the latest successful event ended the story.
+    pub fn ended(&self) -> bool {
+        matches!(self.last_event, Some(VmEvent::End))
+    }
+
     /// Advances until the next interaction event.
     pub fn continue_story(&mut self) -> Result<VmEvent, VmError> {
         match self.vm.continue_until_interaction() {
             Ok(event) => {
-                self.last_event = Some(event.clone());
-                self.last_error = None;
+                self.record(event.clone());
                 Ok(event)
             }
             Err(error) => {
@@ -79,6 +92,7 @@ impl VnStory {
             }
         }
     }
+
     /// Replaces this story with restored save state.
     pub fn restore(
         &mut self,
@@ -88,14 +102,15 @@ impl VnStory {
         rollback: Soa<RollbackCheckpoint>,
         translations: std::collections::HashMap<String, String>,
     ) {
+        let revision = self.revision.wrapping_add(1);
         *self = Self::from_parts(program, state, presentation, rollback, translations);
+        self.revision = revision;
     }
 
     /// Restores the previous interaction checkpoint.
     pub fn rollback(&mut self) -> Option<VmEvent> {
         let event = self.vm.rollback()?;
-        self.last_event = Some(event.clone());
-        self.last_error = None;
+        self.record(event.clone());
         Some(event)
     }
 
@@ -103,8 +118,7 @@ impl VnStory {
     pub fn choose(&mut self, choice: usize) -> Result<VmEvent, VmError> {
         match self.vm.choose(choice) {
             Ok(event) => {
-                self.last_event = Some(event.clone());
-                self.last_error = None;
+                self.record(event.clone());
                 Ok(event)
             }
             Err(error) => {
@@ -113,5 +127,11 @@ impl VnStory {
                 Err(stored)
             }
         }
+    }
+
+    fn record(&mut self, event: VmEvent) {
+        self.last_event = Some(event);
+        self.last_error = None;
+        self.revision = self.revision.wrapping_add(1);
     }
 }

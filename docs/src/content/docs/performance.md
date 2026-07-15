@@ -1,44 +1,79 @@
 ---
-title: Performance
+title: Performance and Measurement
 ---
 
-## Runtime profile
+This page records measurement methods and observed results. It does not claim a general performance level. Results vary with hardware, operating system, compiler, build profile, feature flags, story shape, assets, GPU driver, and window backend.
 
-Vinyl is interaction-driven: the story VM performs small bursts of deterministic work when dialogue advances or a choice is selected, while Bevy handles continuous window rendering, transitions, text reveal, and audio playback.
+## Measurement scope
 
-## Rollback storage
+Vinyl uses different checks for different layers:
 
-The player retains at most 100 interaction checkpoints. Rollback state uses a Struct-of-Arrays container, confined to checkpoint history. A layout comparison of 100 representative checkpoints found equal inline storage and equal serialized size versus the equivalent Array-of-Structs representation:
+- `vn smoke` exercises deterministic, headless story execution.
+- Rust tests cover parser, VM, rollback, persistence, runtime, and presentation behavior.
+- Linux visual CI checks rendered output at 1280×720 under Xvfb and software Vulkan.
+- Targeted release-mode probes are used when comparing implementation changes.
 
-| Measurement | AoS | SoA |
-|---|---:|---:|
-| Inline checkpoint storage | 27,200 bytes | 27,200 bytes |
-| Container allocations | 1 | 1 |
-| Serialized checkpoint data | 22,371 bytes | 22,371 bytes |
+These are not interchangeable. Headless VM timing does not measure frame rate, startup, asset loading, audio, or GPU behavior. Linux software rendering does not predict native Windows or macOS rendering.
 
-This measurement prevents unproven SoA conversions elsewhere. Save slots, VM operations, Bevy entities, and UI state remain in their natural structures.
+## Reproduce the checks
 
-## Current practical baseline
+Headless fixture:
 
-On the MVP fixture, the release `vn smoke` command completes below timer resolution on the development machine and peaks around 24 MB resident memory. The release desktop binary is approximately 84 MB before stripping because it includes the Bevy renderer, window backend, bundled font, image stack, and audio decoders.
+```bash
+cargo build -p vn_cli --release --features audio
+/usr/bin/time -v target/release/vn smoke fixtures/mvp
+```
 
-These figures are local observations, not platform guarantees. GPU driver, window system, asset dimensions, story size, and build settings affect real results.
+Linux visual check:
 
-## Asset behavior
+```bash
+cargo build -p vn_cli --features audio
+WGPU_BACKEND=vulkan LIBGL_ALWAYS_SOFTWARE=1 \
+  xvfb-run -a -s '-screen 0 1280x720x24' python3 scripts/visual-ci.py
+```
 
-- Assets load on demand rather than preloading the whole project.
-- A strong handle keeps each pending Bevy asset request alive.
-- The loading overlay appears only after roughly 150 ms to avoid flashing during fast loads.
-- Background and sprite textures preserve aspect ratio.
-- Corrupt MP3 files are decoded once in preflight before Bevy playback.
+Rollback layout fixture:
 
-## Rendering behavior
+```bash
+cargo test -p vn_core --test rollback_layout -- --nocapture
+```
 
-- The logical canvas remains 1280×720 regardless of window size.
-- Transition and typewriter work is timer-based.
-- Player updates run continuously while focused so animations do not wait for an external window event.
-- Story and menu input are disabled during loading and active effects, avoiding duplicate work and inconsistent state.
+When publishing a result, include the commit, Rust version, OS, CPU, build profile, feature flags, fixture, exact command, and run count.
 
-## Optimization policy
+## Results from the current refactor
 
-Optimize only after a reproducible workload identifies a bottleneck. Keep renderer-independent data simple, prefer existing Bevy ECS storage for render state, and do not spread specialized layouts beyond the measured rollback use case without separate evidence.
+A temporary release-mode probe executed 1,000 dialogue interactions while retaining the configured maximum of 100 rollback checkpoints. It was run five times on the same development machine against committed `663e843` and the current refactor.
+
+| Revision | Median VM time | Five runs | Serialized rollback data |
+|---|---:|---|---:|
+| `663e843` | 28.699 ms | 28.396–28.711 ms | 3,710,951 bytes |
+| Current refactor | 29.413 ms | 28.557–32.504 ms | 3,710,951 bytes |
+
+The current median is about 2.5% higher, but the distributions overlap and one current run was an outlier. This does not establish a regression or improvement. The refactor primarily changes player structure and state bookkeeping rather than the VM or rollback representation.
+
+For `vn smoke fixtures/mvp`, `/usr/bin/time` reported less than 0.01 seconds for both revisions. Maximum resident set size was 23,468 KiB for `663e843` and 24,112 KiB for the current tree on one run each. Timer resolution and one-sample memory results are insufficient for comparative claims.
+
+The temporary VM probe was removed after measurement. The committed `rollback_layout` test remains reproducible, but it compares storage layout for one synthetic checkpoint shape; it is not a general speed benchmark.
+
+## Rollback trade-off
+
+The player retains at most 100 interaction checkpoints. Each checkpoint contains VM and presentation state needed for restoration. The count is bounded; checkpoint size still grows with variables and accumulated story history.
+
+Rollback uses `soa-rs`. For the fixture in `rollback_layout`, Struct-of-Arrays and equivalent Array-of-Structs representations have equal inline container storage and serialized size. That result only describes this fixture. It does not prove that either representation is universally faster or smaller.
+
+## Runtime behavior relevant to measurement
+
+- Assets are requested on demand.
+- The loading overlay appears after about 150 ms.
+- MP3 files are preflight-decoded before Bevy playback.
+- Transitions and typewriter effects are timer-driven.
+- Focused desktop playback uses continuous Bevy updates.
+- The logical canvas is 1280×720; actual render cost depends on output size and backend.
+
+## Reporting policy
+
+- Report measurements, commands, environment, and limitations together.
+- Prefer medians and distributions over single runs.
+- Compare identical fixtures and build settings.
+- Keep VM, serialization, startup, memory, loading, and rendering measurements separate.
+- Do not call a change faster or smaller unless the difference is repeatable and exceeds run-to-run variance.

@@ -25,7 +25,7 @@ pub use input::{
     keyboard_advance_story, rollback_story,
 };
 #[cfg(feature = "desktop")]
-pub use player::{PlayerConfig, PlayerFlags, PlayerMode, VisualTestConfig, run_player};
+pub use player::{PlayerConfig, PlayerMode, VisualTestConfig, run_player};
 pub use plugin::VnBevyPlugin;
 pub use render::{BackgroundRender, MusicRender, SpriteRender};
 pub use resources::{

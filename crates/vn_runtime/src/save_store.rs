@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use serde::Serialize;
 use vn_core::{Preferences, ProjectId, SaveFile, SaveValidationError, validate_save};
 
 /// A manual save slot or the single autosave slot.
@@ -64,31 +65,28 @@ pub fn project_save_dir(project_id: &str) -> io::Result<PathBuf> {
 
 /// Atomically writes a save slot without replacing the previous file until serialization succeeds.
 pub fn write_save(directory: &Path, slot: SaveSlot, save: &SaveFile) -> io::Result<PathBuf> {
-    fs::create_dir_all(directory)?;
-    let path = directory.join(slot.file_name()?);
-    let temporary = path.with_extension("json.tmp");
-    {
-        let file = File::create(&temporary)?;
-        let mut writer = BufWriter::new(file);
-        serde_json::to_writer(&mut writer, save).map_err(io::Error::other)?;
-        writer.flush()?;
-        writer.get_ref().sync_all()?;
-    }
-    fs::rename(&temporary, &path)?;
-    Ok(path)
+    write_json_atomic(directory.join(slot.file_name()?), save)
 }
 
 /// Writes per-project preferences outside save slots.
 pub fn write_preferences(directory: &Path, preferences: &Preferences) -> io::Result<PathBuf> {
-    fs::create_dir_all(directory)?;
-    let path = directory.join("preferences.json");
+    write_json_atomic(directory.join("preferences.json"), preferences)
+}
+
+fn write_json_atomic(path: PathBuf, value: &impl Serialize) -> io::Result<PathBuf> {
+    if let Some(directory) = path.parent() {
+        fs::create_dir_all(directory)?;
+    }
     let temporary = path.with_extension("json.tmp");
     {
         let file = File::create(&temporary)?;
         let mut writer = BufWriter::new(file);
-        serde_json::to_writer(&mut writer, preferences).map_err(io::Error::other)?;
+        serde_json::to_writer(&mut writer, value).map_err(io::Error::other)?;
         writer.flush()?;
         writer.get_ref().sync_all()?;
+    }
+    if cfg!(windows) && path.exists() {
+        fs::remove_file(&path)?;
     }
     fs::rename(&temporary, &path)?;
     Ok(path)
